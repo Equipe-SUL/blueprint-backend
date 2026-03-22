@@ -31,4 +31,8 @@ class ArquivoUpload(models.Model):
         choices=Status.choices,
         default=Status.PENDENTE,
     )
+    tamanho_mb      = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     enviado_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.nome_original} [{self.status_processamento}]"
