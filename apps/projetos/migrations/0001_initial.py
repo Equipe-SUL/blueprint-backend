@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                 ('caminho_arquivo', models.TextField()),
                 ('status_processamento', models.CharField(choices=[('pendente', 'Pendente'), ('processado', 'Processado'), ('erro', 'Erro')], default='pendente', max_length=20)),
                 ('enviado_em', models.DateTimeField(auto_now_add=True)),
-                ('projeto', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='arquivos', to='app.projeto')),
+                ('projeto', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='arquivos', to='apps.projetos.projeto')),
             ],
         ),
     ]

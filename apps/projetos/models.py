@@ -1,9 +1,7 @@
 from django.db import models
 
-# Create your models here.
-
 class Projeto(models.Model):
-    #fk de user
+    # fk de user futuramente
     nome_obra = models.CharField(max_length=100)
     cidade_obra = models.CharField(max_length=100)
     estado_obra = models.CharField(max_length=2)
