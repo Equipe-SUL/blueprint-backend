@@ -1,7 +1,9 @@
 from rest_framework import serializers
 from .models import Projeto, ArquivoUpload
-
-# class ProjetoSerializer(serializers.ModelSerializer):
+class ProjetoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Projeto
+        fields = '__all__'
 
 class UploadArquivoSerializer(serializers.ModelSerializer):
     class Meta:
