@@ -1,6 +1,14 @@
-from django.urls import path
-from . import views
+from django.urls import path, include 
+from django.contrib import admin
+from apps.projetos.views import ProjetosViewSet
+from rest_framework import routers
+
+
+router = routers.DefaultRouter()
+router.register(r'projetos', ProjetosViewSet)
+
+
 
 urlpatterns = [
-    path('server', views.server_status, name='server_status'),
+    path('', include(router.urls))
 ]
