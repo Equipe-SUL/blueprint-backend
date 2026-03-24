@@ -1,7 +1,9 @@
+from rest_framework import viewsets
+from apps.projetos.models import Projeto
+from apps.projetos.serializer import ProjetoSerializer
 
-from django.http import HttpResponse
 
-# Create your views here.
-def server_status(request):
-    return HttpResponse("Servidor está ativo")
-
+class ProjetosViewSet(viewsets.ModelViewSet):
+    '''Exibindo todos os Projetos'''
+    queryset = Projeto.objects.all()
+    serializer_class = ProjetoSerializer
