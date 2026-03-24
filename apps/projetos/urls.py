@@ -2,7 +2,6 @@ from django.urls import path, include
 from .views import UploadArquivoView, ProjetosViewSet, server_status
 from django.conf import settings
 from django.conf.urls.static import static 
-from django.contrib import admin
 from rest_framework import routers
 
 
@@ -10,9 +9,8 @@ router = routers.DefaultRouter()
 router.register(r'projetos', ProjetosViewSet)
 
 
-
 urlpatterns = [
     path('', include(router.urls)),
-    path('server', server_status, name='server_status'),
+    path('server/', server_status, name='server_status'),
     path('projetos/<int:projeto_id>/upload/', UploadArquivoView.as_view(), name='upload_arquivo'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
