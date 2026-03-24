@@ -2,12 +2,19 @@ import os
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 
 from .models import Projeto, ArquivoUpload
-from .serializers import UploadArquivoSerializer
+from .serializers import UploadArquivoSerializer, ProjetoSerializer
+
+
+class ProjetosViewSet(viewsets.ModelViewSet):
+    '''Exibindo todos os Projetos'''
+    queryset = Projeto.objects.all()
+    serializer_class = ProjetoSerializer
+
 
 EXTENSOES_PERMITIDAS = ['.csv', '.xlsx', '.xls']
 TAMANHO_MAX_MB = 10
