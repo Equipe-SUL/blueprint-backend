@@ -1,8 +1,20 @@
 
+<<<<<<< HEAD
+=======
+from django.urls import path, include 
+>>>>>>> origin/T01-EndpointCadastroObra
 from django.contrib import admin
-from django.urls import path, include
+from apps.projetos.views import ProjetosViewSet
+from rest_framework import routers
+
+
+router = routers.DefaultRouter()
+router.register(r'projetos', ProjetosViewSet)
+
+
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/', include('apps.projetos.urls')),
+    path('admin/', admin.site.urls), 
+    path('', include(router.urls))
 ]
+
