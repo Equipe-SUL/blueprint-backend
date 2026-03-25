@@ -24,6 +24,12 @@ def server_status(request):
     return HttpResponse("Servidor está ativo")
 
 class UploadArquivoView(APIView):
+    def get(self, request, projeto_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivos = ArquivoUpload.objects.filter(projeto=projeto)
+        serializer = UploadArquivoSerializer(arquivos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
     def post(self, request, projeto_id):
         
         # Obter o projeto do models com base no ID fornecido
