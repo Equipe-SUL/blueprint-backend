@@ -5,9 +5,10 @@ from rest_framework.response import Response
 from rest_framework import status, viewsets
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from django.db import transaction
 
-from .models import Projeto, ArquivoUpload
-from .serializers import UploadArquivoSerializer, ProjetoSerializer
+from .models import Projeto, ArquivoUpload , ItemProjeto
+from .serializers import UploadArquivoSerializer, ProjetoSerializer , ItemProjetoSerializer
 
 
 class ProjetosViewSet(viewsets.ModelViewSet):
@@ -90,3 +91,58 @@ class UploadArquivoView(APIView):
 
         serializer = UploadArquivoSerializer(arquivo_upload)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    
+    
+class ItemProjetoView(APIView):
+    def post(self, request, projeto_id):
+        # 1. Buscamos o projeto. Se não existir, já devolve um Erro 404.
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        
+        # A IA deve nos enviar uma lista (JSON) com os itens.
+        itens_data = request.data
+        
+        # Verificamos se realmente recebemos uma lista
+        if not isinstance(itens_data, list):
+            return Response(
+                {"error": "O corpo da requisição deve ser uma lista de itens."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Injetamos o ID do projeto em cada item do JSON recebido 
+        # para que o nosso Tradutor (Serializer) saiba a qual projeto eles pertencem. (CA.2)
+        for item in itens_data:
+            item['projeto'] = projeto.id
+
+        # 3. Chamamos nosso tradutor! O 'many=True' avisa que é uma lista de vários itens.
+        serializer = ItemProjetoSerializer(data=itens_data, many=True)
+
+        if serializer.is_valid():
+            try:
+                # 4. AQUI ENTRA O SUPERPODER: Transação Atômica (RN.3)
+                with transaction.atomic():
+                    # Salva todos os itens no banco de uma vez só!
+                    itens_salvos = serializer.save()
+
+                    # 5. Descobrir de quais arquivos esses itens vieram para atualizar o status.
+                    # Usamos um 'set' para pegar IDs únicos (caso vários itens sejam do mesmo arquivo).
+                    arquivos_ids = set([item.arquivo.id for item in itens_salvos])
+                    
+                    # Atualiza todos os arquivos vinculados para 'processado'
+                    ArquivoUpload.objects.filter(id__in=arquivos_ids).update(
+                        status_processamento=ArquivoUpload.Status.PROCESSADO
+                    )
+
+                    # CA.3: Retornar 201 com a lista cadastrada
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                # Se o banco der algum "tilt" no meio do processo, a transação desfaz TUDO
+                # e nós caímos aqui, retornando um erro 500 sem dados pela metade (CA.4)
+                return Response(
+                    {"error": f"Erro interno ao salvar os itens: {str(e)}"}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        else:
+            # Se o JSON enviado pela IA faltar algum campo obrigatório, barra aqui. (CA.4)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
