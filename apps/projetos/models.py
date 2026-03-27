@@ -38,3 +38,34 @@ class ArquivoUpload(models.Model):
         return f"{self.nome_original} [{self.status_processamento}]"
     
     
+    
+class ItemProjeto(models.Model):
+    class Origem(models.TextChoices):
+        SINAPI = 'sinapi', 'SINAPI'
+        PROPRIO = 'proprio', 'Composição Própria'
+        
+    # Relacionamos o item ao Projeto e ao Arquivo que o gerou (CA.2)
+    projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name='itens')
+    arquivo = models.ForeignKey(ArquivoUpload, on_delete=models.CASCADE, related_name='itens_extraidos')
+    
+    # Campos de dados do item (Exemplos comuns de itens de obra)
+    descricao = models.TextField()
+    unidade = models.CharField(max_length=20)
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2)
+    preco_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    # RN.2: Origem inicial: sinapi
+    origem = models.CharField(
+        max_length=50, 
+        choices = Origem.choices,
+        default = Origem.SINAPI)
+    
+    # RN.1: Status inicial: pendente
+    status_mapeamento = models.CharField(max_length=20, default='pendente')
+
+    def __str__(self):
+        return f"{self.descricao[:30]}... ({self.projeto.nome_obra})"   
+    
+
+    
+    
