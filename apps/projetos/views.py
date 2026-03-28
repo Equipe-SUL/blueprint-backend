@@ -7,6 +7,8 @@ from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.db import transaction
 
+from apps.projetos.services.conversor import converter_dxf_para_lista_itens
+
 from .models import Projeto, ArquivoUpload , ItemProjeto
 from .serializers import UploadArquivoSerializer, ProjetoSerializer , ItemProjetoSerializer
 
@@ -17,8 +19,8 @@ class ProjetosViewSet(viewsets.ModelViewSet):
     serializer_class = ProjetoSerializer
 
 
-EXTENSOES_PERMITIDAS = ['.csv', '.xlsx', '.xls']
-TAMANHO_MAX_MB = 10
+EXTENSOES_PERMITIDAS = ['.dxf']
+TAMANHO_MAX_MB = 40
 
 # Create your views here.
 def server_status(request):
@@ -32,69 +34,95 @@ class UploadArquivoView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, request, projeto_id):
-        
-        # Obter o projeto do models com base no ID fornecido
         projeto = get_object_or_404(Projeto, id=projeto_id)
-
         arquivo = request.FILES.get('arquivo')
+        
         if not arquivo:
-            return Response(
-                {"error": "Nenhum arquivo enviado. Use o Campo de Arquivo."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Nenhum arquivo enviado."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Validar extensão do arquivo
         nome_arquivo = arquivo.name
-        
         _, ext = os.path.splitext(nome_arquivo.lower())
+        
         if ext not in EXTENSOES_PERMITIDAS:
-            return Response(
-                {"error": f"Extensão '{ext}' não é permitida. Extensões permitidas: {', '.join(EXTENSOES_PERMITIDAS)}."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": f"Extensão '{ext}' não permitida."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Checar o tamanho do arquivo
         tamanho_mb = arquivo.size / (1024 * 1024)   
         if tamanho_mb > TAMANHO_MAX_MB:
-            return Response(
-                {
-                    "erro": (
-                        f"Arquivo muito grande: {tamanho_mb:.2f} MB. "
-                        f"Máximo permitido: {TAMANHO_MAX_MB} MB."
-                    )
-                },
-                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            )
+            return Response({"error": "Arquivo muito grande."}, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
 
-        # Salvar o arquivo no sistema de arquivos local (futuramente num armazenamento em nuvem).
         try:
             directory = os.path.join(settings.MEDIA_ROOT, 'uploads', str(projeto_id))
             os.makedirs(directory, exist_ok=True)
             caminho_arquivo = os.path.join(directory, nome_arquivo)
 
-            # chunks() escreve em pedaços (para não sobrecarregar a RAM)
             with open(caminho_arquivo, 'wb+') as destino:
                 for chunk in arquivo.chunks():
                     destino.write(chunk)
         
+            # Cria o registro no banco
+            arquivo_upload = ArquivoUpload.objects.create(
+                projeto=projeto,
+                nome_original=nome_arquivo,
+                caminho_arquivo=caminho_arquivo,
+                tamanho_mb=round(tamanho_mb, 2),
+                status_processamento=ArquivoUpload.Status.PENDENTE,
+            )
+
+            # --- PROCESSAMENTO ---
+            # Se for DXF, processa e já retorna
+            if ext == '.dxf':
+                itens_json = converter_dxf_para_lista_itens(caminho_arquivo, arquivo_upload.id)
+                serializer_arquivo = UploadArquivoSerializer(arquivo_upload)
+                return Response({
+                    "arquivo": serializer_arquivo.data,
+                    "itens_para_lancar": itens_json
+                }, status=status.HTTP_201_CREATED)
+            
+            # Se for outra extensão (CSV, XLS), retorna apenas os dados do arquivo
+            serializer = UploadArquivoSerializer(arquivo_upload)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc()) # Isso vai imprimir o erro detalhado no seu terminal
+            return Response({
+                "error": f"Erro no processamento: {str(e)}",
+                "traceback": traceback.format_exc() # Isso manda o erro detalhado para o Postman
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+class ItemProjetoView(APIView):
+    def get(self, request, projeto_id):
+        try:
+            # 
+            projeto = get_object_or_404(Projeto, id=projeto_id)
+            itens = ItemProjeto.objects.filter(projeto=projeto).order_by('id')
+            
+            if not itens.exists():
+                return Response(
+                    {
+                        "message": "Nenhum item encontrado para este projeto.",
+                        "data": []   
+                    }, 
+                    status=status.HTTP_200_OK
+                )
+            
+            serializer = ItemProjetoSerializer(itens, many=True)
+            return Response(
+                {
+                    "message": "Itens encontrados com sucesso.",
+                    "data": serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
         except Exception as e:
             return Response(
-                {"error": f"Erro ao salvar o arquivo: {str(e)}"}, 
+                {
+                    "error": f"Erro interno ao buscar no servidor: {str(e)}",
+                    "data": []
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        arquivo_upload = ArquivoUpload.objects.create(
-            projeto=projeto,
-            nome_original=nome_arquivo,
-            caminho_arquivo=caminho_arquivo,
-            tamanho_mb=round(tamanho_mb, 2),
-            status_processamento=ArquivoUpload.Status.PENDENTE,
-        )
-
-        serializer = UploadArquivoSerializer(arquivo_upload)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    
-    
-class ItemProjetoView(APIView):
     def post(self, request, projeto_id):
         # 1. Buscamos o projeto. Se não existir, já devolve um Erro 404.
         projeto = get_object_or_404(Projeto, id=projeto_id)
