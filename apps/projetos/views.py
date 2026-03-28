@@ -95,6 +95,38 @@ class UploadArquivoView(APIView):
     
     
 class ItemProjetoView(APIView):
+    def get(self, request, projeto_id):
+        try:
+            # 
+            projeto = get_object_or_404(Projeto, id=projeto_id)
+            itens = ItemProjeto.objects.filter(projeto=projeto).order_by('id')
+            
+            if not itens.exists():
+                return Response(
+                    {
+                        "message": "Nenhum item encontrado para este projeto.",
+                        "data": []   
+                    }, 
+                    status=status.HTTP_200_OK
+                )
+            
+            serializer = ItemProjetoSerializer(itens, many=True)
+            return Response(
+                {
+                    "message": "Itens encontrados com sucesso.",
+                    "data": serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "error": f"Erro interno ao buscar no servidor: {str(e)}",
+                    "data": []
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     def post(self, request, projeto_id):
         # 1. Buscamos o projeto. Se não existir, já devolve um Erro 404.
         projeto = get_object_or_404(Projeto, id=projeto_id)
