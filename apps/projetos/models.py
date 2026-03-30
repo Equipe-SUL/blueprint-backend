@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.postgres.fields import ArrayField 
 
 class Projeto(models.Model):
     class TipoProjeto(models.TextChoices):
@@ -7,17 +8,16 @@ class Projeto(models.Model):
         ALVENARIA = 'alvenaria', 'Alvenaria'
         SPDA = 'spda', 'SPDA'
         COMBATE_A_INCENDIO = 'combate_a_incendio', 'Combate a Incêndio'
-        null = 'null', 'Não Informado'
 
     # fk de user futuramente
     nome_obra = models.CharField(max_length=100)
     cidade_obra = models.CharField(max_length=100)
     estado_obra = models.CharField(max_length=2)
     desc_obra = models.TextField(blank=True)
-    tipo_projeto = models.CharField(
-        max_length=50, 
-        choices=TipoProjeto.choices,
-        default=TipoProjeto.null
+    tipo_projeto = ArrayField(
+        models.CharField(max_length=50, choices=TipoProjeto.choices),
+        default=list,
+        blank=False
     )
     taxa_bdi = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     criado_em = models.DateTimeField(auto_now_add=True)
