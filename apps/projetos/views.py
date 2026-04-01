@@ -56,7 +56,7 @@ class UploadArquivoView(APIView):
         _, ext = os.path.splitext(nome_arquivo.lower())
         if ext not in EXTENSOES_PERMITIDAS:
             return Response(
-                {"error": "Formato de arquivo não suportado para extração."}, 
+                {"error": f"Formato '{ext}' não é permitida. Extensões permitidas: {', '.join(EXTENSOES_PERMITIDAS)}"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
