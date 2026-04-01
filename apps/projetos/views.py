@@ -54,11 +54,7 @@ class UploadArquivoView(APIView):
         # Validar extensão do arquivo (Bloqueado apenas para arquivos permitidos acima, na linha 22)
         nome_arquivo = arquivo.name
         _, ext = os.path.splitext(nome_arquivo.lower())
-        if ext == '.dxf':
-            extracao = extrair_dados_dxf(caminho_arquivo)
-        elif ext in ['.xls', '.xlsx']:
-            extracao = extrair_dados_excel(caminho_arquivo)
-        else:
+        if ext not in EXTENSOES_PERMITIDAS:
             return Response(
                 {"error": "Formato de arquivo não suportado para extração."}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -94,7 +90,10 @@ class UploadArquivoView(APIView):
             )
 
         # 2. Arquivo salvo. Acionando o Service de Extração EXCLUSIVO do DXF
-        extracao = extrair_dados_dxf(caminho_arquivo)
+        if ext == '.dxf':
+            extracao = extrair_dados_dxf(caminho_arquivo)
+        elif ext in ['.xls', '.xlsx']:
+            extracao = extrair_dados_excel(caminho_arquivo)
         
         if not extracao["sucesso"]:
             return Response(
