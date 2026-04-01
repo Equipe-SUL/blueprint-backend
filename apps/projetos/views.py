@@ -19,11 +19,10 @@ class ProjetosViewSet(viewsets.ModelViewSet):
     queryset = Projeto.objects.all()
     serializer_class = ProjetoSerializer
 
-EXTENSOES_PERMITIDAS = ['.dxf'] #['.csv', '.xlsx', '.xls']
+EXTENSOES_PERMITIDAS = ['.dxf', '.xlsx', '.xls'] #['.csv', '.xlsx', '.xls']
 TAMANHO_MAX_MB = 15
 
-def server_status(request):
-    return HttpResponse("Servidor está ativo")
+def server_status(request):    return HttpResponse("Servidor está ativo")
 
 # =====================================================================
 # INÍCIO DO BLOCO DXF 
@@ -52,12 +51,16 @@ class UploadArquivoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validar extensão do arquivo (Bloqueado apenas para DXF)
+        # Validar extensão do arquivo (Bloqueado apenas para arquivos permitidos acima, na linha 22)
         nome_arquivo = arquivo.name
         _, ext = os.path.splitext(nome_arquivo.lower())
-        if ext not in EXTENSOES_PERMITIDAS:
+        if ext == '.dxf':
+            extracao = extrair_dados_dxf(caminho_arquivo)
+        elif ext in ['.xls', '.xlsx']:
+            extracao = extrair_dados_excel(caminho_arquivo)
+        else:
             return Response(
-                {"error": f"Extensão '{ext}' não é permitida. Extensões permitidas: {', '.join(EXTENSOES_PERMITIDAS)}."}, 
+                {"error": "Formato de arquivo não suportado para extração."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
