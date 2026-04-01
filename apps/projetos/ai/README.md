@@ -9,8 +9,4 @@ Arquivos sugeridos:
 - `interpretation.py`: DXF extraído -> itens interpretados (LLM)
 - `retrieval.py`: recuperação (RAG) para SINAPI (top-k, rerank etc.)
 - `embeddings.py`: geração/atualização de embeddings (indexação)
-- `text.py`: normalização/filtros de texto (limpar ruído do DXF)
-
-Prompts (arquivos editáveis):
-- `prompts/interpret_dxf.md`
-- `prompts/map_sinapi.md`
+- `prompts.py`: prompts para serem utilizados
