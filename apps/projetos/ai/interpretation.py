@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import asyncio
 from collections import defaultdict
 from decimal import Decimal
 from typing import Any, Iterable
@@ -22,6 +23,7 @@ from .prompts import INTERPRETATION_SYSTEM_PROMPT, INTERPRETATION_USER_PROMPT
 # 5. Junta tudo em uma resposta final (merge)
 
 CHUNK_SIZE = 200  # Número de entradas por chunk, ajuda a controlar o tamanho do contexto para a LLM. Da pra ajustar conforme necessidade e limites da LLM.
+CHUNK_CONCURRENCY = 4  # Limita quantos chunks chamam a LLM ao mesmo tempo para reduzir o tempo total sem sobrecarregar.
 _RE_MTEXT_FMT = re.compile(r"\{\\[^;]+;([^}]*)\}") # Limpa formatações do MTEXT do DXF, mantendo o texto dentro das chaves (ex: {\\H1.5x;Texto} vira "Texto")
 
 # TODO: Limpeza de dados extraidos do DXF - remove formatação MTEXT, quebras e símbolos, precisamos disso pra LLM interpretar melhor.
@@ -115,17 +117,29 @@ def interpretar_itens_extraidos_dxf(
     saidas: list[ItensProjetoLLMSaida] = []
     base_json = json.dumps(base_context, ensure_ascii=False)
 
-    # 3) MAP: interpreta chunk a chunk
-    for idx, chunk in enumerate(_chunked(textos_norm, CHUNK_SIZE), start=1):
-        chunk_json = json.dumps(chunk, ensure_ascii=False)
-        t_chunk_start = perf_counter()
-        print(f"[interpretar] chunk {idx} -> {len(chunk)} entradas", flush=True)
-        saida = chain.invoke({"base_json": base_json, "chunk_json": chunk_json})
-        print(
-            f"[interpretar] chunk {idx} concluído em {perf_counter() - t_chunk_start:.2f}s",
-            flush=True,
-        )
-        saidas.append(saida)
+    # 3) MAP: interpreta chunks em paralelo limitado (async) pra reduzir o tempo total de LLM
+    async def _processar_chunks() -> list[ItensProjetoLLMSaida]:
+        sem = asyncio.Semaphore(CHUNK_CONCURRENCY)
+
+        async def _invocar_chunk(idx: int, chunk: list[dict[str, Any]]):
+            chunk_json = json.dumps(chunk, ensure_ascii=False)
+            t_chunk_start = perf_counter()
+            print(f"[interpretar] chunk {idx} -> {len(chunk)} entradas", flush=True)
+            async with sem:  # garante limite de concorrência
+                saida = await chain.ainvoke({"base_json": base_json, "chunk_json": chunk_json})
+            print(
+                f"[interpretar] chunk {idx} concluído em {perf_counter() - t_chunk_start:.2f}s",
+                flush=True,
+            )
+            return saida
+
+        tasks = [
+            _invocar_chunk(idx, chunk)
+            for idx, chunk in enumerate(_chunked(textos_norm, CHUNK_SIZE), start=1)
+        ]
+        return await asyncio.gather(*tasks)
+
+    saidas.extend(asyncio.run(_processar_chunks()))
 
     # 4) REDUCE: consolida tudo em uma única saída
     t_merge_start = perf_counter()
