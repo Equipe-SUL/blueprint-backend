@@ -5,11 +5,13 @@ import re
 from collections import defaultdict
 from decimal import Decimal
 from typing import Any, Iterable
+from time import perf_counter
 
 from langchain_core.prompts import ChatPromptTemplate
 
 from .client import get_chat_llm
 from .schemas import ItensProjetoLLMSaida
+from .prompts import INTERPRETATION_SYSTEM_PROMPT, INTERPRETATION_USER_PROMPT
 
 # Uso principal do interpretation.py é receber a extração DXF, interpretar o JSON e devolver uma lista de itens de projeto (descricao, unidade, quantidade, preco_unitario) para serem inseridos no banco.
 # Algoritmo:
@@ -19,7 +21,7 @@ from .schemas import ItensProjetoLLMSaida
 # 4. Em cada chunk: monta o prompt, chama a LLM pelo client.py e por fim prepara a resposta em JSON com o schemas.py 
 # 5. Junta tudo em uma resposta final (merge)
 
-CHUNK_SIZE = 120  # Número de entradas por chunk, ajuda a controlar o tamanho do contexto para a LLM. Da pra ajustar conforme necessidade e limites da LLM.
+CHUNK_SIZE = 200  # Número de entradas por chunk, ajuda a controlar o tamanho do contexto para a LLM. Da pra ajustar conforme necessidade e limites da LLM.
 _RE_MTEXT_FMT = re.compile(r"\{\\[^;]+;([^}]*)\}") # Limpa formatações do MTEXT do DXF, mantendo o texto dentro das chaves (ex: {\\H1.5x;Texto} vira "Texto")
 
 # TODO: Limpeza de dados extraidos do DXF - remove formatação MTEXT, quebras e símbolos, precisamos disso pra LLM interpretar melhor.
@@ -77,6 +79,8 @@ def interpretar_itens_extraidos_dxf(
     *,
     tipo_projeto: list[str] | None = None,
 ) -> ItensProjetoLLMSaida:
+    t_start = perf_counter()
+    print("[interpretar] início do fluxo", flush=True)
     # 1) Normaliza os textos (só formatação)
     textos_legenda = itens_extraidos.get("textos_legenda") or []
     textos_norm: list[dict[str, Any]] = []
@@ -100,25 +104,8 @@ def interpretar_itens_extraidos_dxf(
 
     prompt = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",                
-                "Você é um assistente especializado em interpretar dados extraídos de plantas arquitetônicas em formato DXF, "
-                "convertendo-os em itens de projeto para orçamentação. "
-                "Sua tarefa é analisar os textos e legendas extraídas, associá-los aos ambientes corretos e inferir as quantidades, unidades e descrições dos itens. "
-                "Use o contexto fornecido para entender o tipo de projeto e as características dos ambientes. "
-                "Se tiver dúvidas ou incertezas, inclua avisos na resposta para que o usuário possa revisar."
-                
-            ),
-            (
-                "user", 
-                "Contexto do projeto (JSON):\n{base_json}\n\n"
-                "Textos do DXF (chunk) (JSON):\n{chunk_json}\n\n"
-                "Tarefa:\n"
-                "- Gere itens no formato do schema (descricao, unidade, quantidade, preco_unitario, origem, justificativa opcional).\n"
-                "- `preco_unitario`: use 0.00 por enquanto.\n"
-                "- `origem`: use 'proprio' por enquanto.\n"
-                "- Se não der pra ter certeza, inclua um aviso em `avisos`.\n",
-            ),
+            ("system", INTERPRETATION_SYSTEM_PROMPT),
+            ("user", INTERPRETATION_USER_PROMPT),
         ]
     )
 
@@ -129,11 +116,23 @@ def interpretar_itens_extraidos_dxf(
     base_json = json.dumps(base_context, ensure_ascii=False)
 
     # 3) MAP: interpreta chunk a chunk
-    for chunk in _chunked(textos_norm, CHUNK_SIZE):
+    for idx, chunk in enumerate(_chunked(textos_norm, CHUNK_SIZE), start=1):
         chunk_json = json.dumps(chunk, ensure_ascii=False)
+        t_chunk_start = perf_counter()
+        print(f"[interpretar] chunk {idx} -> {len(chunk)} entradas", flush=True)
         saida = chain.invoke({"base_json": base_json, "chunk_json": chunk_json})
+        print(
+            f"[interpretar] chunk {idx} concluído em {perf_counter() - t_chunk_start:.2f}s",
+            flush=True,
+        )
         saidas.append(saida)
 
     # 4) REDUCE: consolida tudo em uma única saída
+    t_merge_start = perf_counter()
     resultado_final = _merge_saidas(saidas)
+    print(
+        f"[interpretar] merge concluído em {perf_counter() - t_merge_start:.2f}s; "
+        f"total {perf_counter() - t_start:.2f}s",
+        flush=True,
+    )
     return resultado_final

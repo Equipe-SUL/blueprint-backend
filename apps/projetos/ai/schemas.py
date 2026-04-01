@@ -1,7 +1,7 @@
 from __future__ import annotations 
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,8 +13,9 @@ class ItemProjetoLLM(BaseModel):
     
     descricao: str = Field(min_length=3, max_length=400)
     unidade: str = Field(min_length=1, max_length=20, description="Ex.: m, m2, un")
-    quantidade: Decimal = Field(gt=0, description="Quantidade deve ser maior que zero.")
+    quantidade: Decimal = Field(ge=0, description="Quantidade deve ser maior ou igual a zero.")
     preco_unitario: Decimal = Field(default=Decimal('0.00'), ge=0, description="Preço unitário deve ser maior ou igual a zero.")
+    origem: Literal["sinapi", "proprio"] = "sinapi"
 
     # Campo opicional para uma explicação rápida da escolha (não vai pro bd)
     justificativa: str | None = Field(default=None, max_length=300)
@@ -28,10 +29,11 @@ class ItemProjetoLLM(BaseModel):
             "unidade": self.unidade,
             "quantidade": self.quantidade,
             "preco_unitario": self.preco_unitario,
+            "origem": self.origem
         }
     
 class ItensProjetoLLMSaida(BaseModel):
-    model_config = ConfigDict(extra='forbid') # Proibe campos extras, garantindo que a LLM envie o que foi definido aqui.
+    model_config = ConfigDict(extra='allow') # Proibe campos extras, garantindo que a LLM envie o que foi definido aqui.
 
     itens: list[ItemProjetoLLM] = Field(default_factory=list, description="Lista de itens mapeados pela LLM. Deve conter pelo menos um item.")
     avisos: list[str] = Field(default_factory=list, description="Lista de avisos ou mensagens da LLM, como incertezas ou sugestões para o usuário.")

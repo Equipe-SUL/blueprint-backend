@@ -16,7 +16,5 @@ urlpatterns = [
     path('projetos/<int:projeto_id>/itens/', ItemProjetoView.as_view(), name='itens_projeto'),
     path('projetos/<int:projeto_id>/teste-planilha/', TesteUploadPlanilhaView.as_view(), name='teste_planilha'),
     path('projetos/<int:projeto_id>/arquivos/<int:arquivo_id>/interpretar/', InterpretarArquivoDxfView.as_view(), name='interpretar_dxf'),
-   
-    
     
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
