@@ -93,6 +93,8 @@ def interpretar_itens_extraidos_dxf(
         "tipo_projeto": tipo_projeto or [],
         "ambientes": itens_extraidos.get("ambientes") or [],
         "quantidades_por_etiqueta": itens_extraidos.get("quantidades_por_etiqueta") or [],
+        # --- ADIÇÃO PARA O RAG DUPLO (A Visão da VLM) ---
+        "relatorio_visual_vlm": itens_extraidos.get("analise_visual", "Não disponível") 
     }
 
     prompt = ChatPromptTemplate.from_messages(

@@ -10,15 +10,15 @@ Se tiver dúvidas ou incertezas, inclua avisos na resposta para que o usuário p
 
 # AQUI ESTÁ A GRANDE MUDANÇA (Adição do contexto_sinapi e novas regras de preço)
 INTERPRETATION_USER_PROMPT = (
-    "Contexto do projeto (JSON):\n{base_json}\n\n"
+    "Contexto do projeto e Visão da Planta (JSON):\n{base_json}\n\n"
     "Tabela SINAPI (Preços e Materiais para referência):\n{contexto_sinapi}\n\n"
     "Textos do DXF (chunk) (JSON):\n{chunk_json}\n\n"
     "Tarefa:\n"
-    "- Gere itens no formato do schema (descricao, unidade, quantidade, "
-    "preco_unitario, origem, justificativa opcional).\n"
-    "- PREÇO E ORIGEM: Procure os materiais do DXF na 'Tabela SINAPI' fornecida acima. "
-    "Se encontrar um material correspondente, use a descrição e o preço unitário da tabela, e defina a origem como 'sinapi'. "
-    "Se o material NÃO estiver na tabela SINAPI acima, use 0.00 como preço e defina origem como 'proprio'.\n"
+    "- Gere itens no formato do schema (descricao, unidade, quantidade, preco_unitario, origem, justificativa opcional).\n"
+    "- QUANTIDADES: Compare as quantidades do DXF com o `relatorio_visual_vlm` no Contexto do projeto. Se houver divergência, avise no campo `avisos`.\n"
+    "- PREÇO E ORIGEM: Procure os materiais do DXF na 'Tabela SINAPI' fornecida. "
+    "Se encontrar, use a descrição e o preço unitário da tabela, e defina a origem como 'sinapi'. "
+    "Se o material NÃO estiver na tabela SINAPI acima, use 0.00 como preço e origem 'proprio'.\n"
     "- Se não der pra ter certeza da correspondência, inclua um aviso em `avisos`.\n"
 )
 
