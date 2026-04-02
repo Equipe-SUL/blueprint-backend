@@ -14,19 +14,15 @@ from .client import get_chat_llm
 from .schemas import ItensProjetoLLMSaida
 from .prompts import INTERPRETATION_SYSTEM_PROMPT, INTERPRETATION_USER_PROMPT
 
+# NOVO IMPORT: Trazendo o buscador do RAG que criamos no Passo 1
+from .retrieval import buscar_contexto_sinapi
+
 # Uso principal do interpretation.py é receber a extração DXF, interpretar o JSON e devolver uma lista de itens de projeto (descricao, unidade, quantidade, preco_unitario) para serem inseridos no banco.
-# Algoritmo:
-# 1. Recebe JSON da extração do DXF.
-# 2. Normaliza formação do texto
-# 3. Divide textos em blocos (chunks) para caber no contexto da LLM
-# 4. Em cada chunk: monta o prompt, chama a LLM pelo client.py e por fim prepara a resposta em JSON com o schemas.py 
-# 5. Junta tudo em uma resposta final (merge)
 
-CHUNK_SIZE = 200  # Número de entradas por chunk, ajuda a controlar o tamanho do contexto para a LLM. Da pra ajustar conforme necessidade e limites da LLM.
-CHUNK_CONCURRENCY = 4  # Limita quantos chunks chamam a LLM ao mesmo tempo para reduzir o tempo total sem sobrecarregar.
-_RE_MTEXT_FMT = re.compile(r"\{\\[^;]+;([^}]*)\}") # Limpa formatações do MTEXT do DXF, mantendo o texto dentro das chaves (ex: {\\H1.5x;Texto} vira "Texto")
+CHUNK_SIZE = 200  
+CHUNK_CONCURRENCY = 4  
+_RE_MTEXT_FMT = re.compile(r"\{\\[^;]+;([^}]*)\}") 
 
-# TODO: Limpeza de dados extraidos do DXF - remove formatação MTEXT, quebras e símbolos, precisamos disso pra LLM interpretar melhor.
 def _clean_mtext(texto: str) -> str:
     txt = (texto or "").strip()
     if not txt:
@@ -37,13 +33,10 @@ def _clean_mtext(texto: str) -> str:
     txt = re.sub(r"\s+", " ", txt).strip()
     return txt
 
-# TODO: Dividir para conquistar! 
-# Divide a lista extraida de textos de blocos menores (chunks) para processar com a LLM, garantindo que cada bloco tenha um tamanho adequado para o contexto da LLM.
 def _chunked(items: list[dict[str, Any]], size: int) -> Iterable[list[dict[str, Any]]]:
     for i in range(0, len(items), size):
         yield items[i:i + size]
 
-# TODO: Merge inteligente das saídas da LLM - consolida os itens interpretados de cada chunk, somando quantidades de itens iguais e junta itens.
 def _merge_saidas(saidas: list[ItensProjetoLLMSaida]) -> ItensProjetoLLMSaida:
     itens_por_chave: dict[tuple[str, str], dict[str, Any]] = {}
     avisos: list[str] = []
@@ -66,7 +59,6 @@ def _merge_saidas(saidas: list[ItensProjetoLLMSaida]) -> ItensProjetoLLMSaida:
                 }
             else:
                 itens_por_chave[chave]["quantidade"] += Decimal(item.quantidade)
-                # preço_unitario e origem ficam como vieram (por enquanto)
 
     merged = {
         "itens": list(itens_por_chave.values()),
@@ -74,8 +66,7 @@ def _merge_saidas(saidas: list[ItensProjetoLLMSaida]) -> ItensProjetoLLMSaida:
     }
     return ItensProjetoLLMSaida.model_validate(merged)
 
-# TODO: oquestra tudo acima
-# Chunking + chamadas LLM + merge para saída final 
+
 def interpretar_itens_extraidos_dxf(
     itens_extraidos: dict[str, Any],
     *,
@@ -83,7 +74,8 @@ def interpretar_itens_extraidos_dxf(
 ) -> ItensProjetoLLMSaida:
     t_start = perf_counter()
     print("[interpretar] início do fluxo", flush=True)
-    # 1) Normaliza os textos (só formatação)
+    
+    # 1) Normaliza os textos
     textos_legenda = itens_extraidos.get("textos_legenda") or []
     textos_norm: list[dict[str, Any]] = []
     for row in textos_legenda:
@@ -94,10 +86,9 @@ def interpretar_itens_extraidos_dxf(
             }
         )
     
-    # remove entradas vazias (isso é só sanidade)
     textos_norm = [r for r in textos_norm if r["texto"]]
 
-    # 2) Contexto fixo (vai junto em todos os chunks)
+    # 2) Contexto fixo
     base_context = {
         "tipo_projeto": tipo_projeto or [],
         "ambientes": itens_extraidos.get("ambientes") or [],
@@ -117,7 +108,6 @@ def interpretar_itens_extraidos_dxf(
     saidas: list[ItensProjetoLLMSaida] = []
     base_json = json.dumps(base_context, ensure_ascii=False)
 
-    # 3) MAP: interpreta chunks em paralelo limitado (async) pra reduzir o tempo total de LLM
     async def _processar_chunks() -> list[ItensProjetoLLMSaida]:
         sem = asyncio.Semaphore(CHUNK_CONCURRENCY)
 
@@ -125,8 +115,24 @@ def interpretar_itens_extraidos_dxf(
             chunk_json = json.dumps(chunk, ensure_ascii=False)
             t_chunk_start = perf_counter()
             print(f"[interpretar] chunk {idx} -> {len(chunk)} entradas", flush=True)
-            async with sem:  # garante limite de concorrência
-                saida = await chain.ainvoke({"base_json": base_json, "chunk_json": chunk_json})
+            
+            # --- INÍCIO DA INTEGRAÇÃO RAG ---
+            # Extraímos as palavras deste chunk para usar como busca na SINAPI
+            textos_do_chunk = " ".join([item["texto"] for item in chunk])
+            # Limitamos a busca aos primeiros 500 caracteres para ser rápido
+            termo_para_busca = textos_do_chunk[:500] 
+            
+            # Buscamos no ChromaDB usando asyncio.to_thread para não travar o loop assíncrono
+            contexto_sinapi = await asyncio.to_thread(buscar_contexto_sinapi, termo_para_busca, 5)
+            # --- FIM DA INTEGRAÇÃO RAG ---
+
+            async with sem:
+                saida = await chain.ainvoke({
+                    "base_json": base_json, 
+                    "chunk_json": chunk_json,
+                    "contexto_sinapi": contexto_sinapi # Injetamos a SINAPI no Prompt!
+                })
+                
             print(
                 f"[interpretar] chunk {idx} concluído em {perf_counter() - t_chunk_start:.2f}s",
                 flush=True,

@@ -63,7 +63,7 @@ class AIConfig:
 def get_ai_config() -> AIConfig:
     return AIConfig(
         ollama_base_url=_env_str("OLLAMA_BASE_URL", "http://localhost:11434"),
-        ollama_chat_model=_env_str("OLLAMA_CHAT_MODEL", "qwen2.5-coder:7b"),
+        ollama_chat_model=_env_str("OLLAMA_CHAT_MODEL", "qwen2.5:7b"),
         ollama_vl_model=_env_str("OLLAMA_VL_MODEL", None),
-        ollama_temperature=_env_float("OLLAMA_TEMPERATURE", 0.2)
+        ollama_temperature=_env_float("OLLAMA_TEMPERATURE", 0.0)
     )

@@ -1,22 +1,25 @@
 INTERPRETATION_SYSTEM_PROMPT = """
-	Você é um assistente especializado em interpretar dados extraídos de plantas 
-	arquitetônicas em formato DXF, convertendo-os em itens de projeto para orçamentação. 
-    
-    Sua tarefa é analisar os textos e legendas extraídas, 
-	associá-los aos ambientes corretos e inferir as quantidades, unidades e descrições dos itens. 
-    Use o contexto fornecido para entender o tipo de projeto e as características dos ambientes. 
-    Se tiver dúvidas ou incertezas, inclua avisos na resposta para que o usuário possa revisar.
+Você é um assistente especializado em interpretar dados extraídos de plantas 
+arquitetônicas em formato DXF, convertendo-os em itens de projeto para orçamentação. 
+
+Sua tarefa é analisar os textos e legendas extraídas, 
+associá-los aos ambientes corretos e inferir as quantidades, unidades e descrições dos itens. 
+Use o contexto fornecido para entender o tipo de projeto e as características dos ambientes. 
+Se tiver dúvidas ou incertezas, inclua avisos na resposta para que o usuário possa revisar.
 """
 
+# AQUI ESTÁ A GRANDE MUDANÇA (Adição do contexto_sinapi e novas regras de preço)
 INTERPRETATION_USER_PROMPT = (
-	"Contexto do projeto (JSON):\n{base_json}\n\n"
-	"Textos do DXF (chunk) (JSON):\n{chunk_json}\n\n"
-	"Tarefa:\n"
-	"- Gere itens no formato do schema (descricao, unidade, quantidade, "
-	"preco_unitario, origem, justificativa opcional).\n"
-	"- `preco_unitario`: use 0.00 por enquanto.\n"
-	"- `origem`: use 'proprio' por enquanto.\n"
-	"- Se não der pra ter certeza, inclua um aviso em `avisos`.\n"
+    "Contexto do projeto (JSON):\n{base_json}\n\n"
+    "Tabela SINAPI (Preços e Materiais para referência):\n{contexto_sinapi}\n\n"
+    "Textos do DXF (chunk) (JSON):\n{chunk_json}\n\n"
+    "Tarefa:\n"
+    "- Gere itens no formato do schema (descricao, unidade, quantidade, "
+    "preco_unitario, origem, justificativa opcional).\n"
+    "- PREÇO E ORIGEM: Procure os materiais do DXF na 'Tabela SINAPI' fornecida acima. "
+    "Se encontrar um material correspondente, use a descrição e o preço unitário da tabela, e defina a origem como 'sinapi'. "
+    "Se o material NÃO estiver na tabela SINAPI acima, use 0.00 como preço e defina origem como 'proprio'.\n"
+    "- Se não der pra ter certeza da correspondência, inclua um aviso em `avisos`.\n"
 )
 
 VLM_SYSTEM_PROMPT = (
@@ -25,20 +28,20 @@ VLM_SYSTEM_PROMPT = (
 )
 
 VLM_USER_PROMPT_TEMPLATE = """
-	Tarefa: conte na imagem a quantidade de cada alvo listado.
+Tarefa: conte na imagem a quantidade de cada alvo listado.
 
-	Regras rígidas:
-	- Analise APENAS a vista principal de 'PLANTA BAIXA'.
-	- Ignore completamente 'ISOMÉTRICOS', 'DETALHES' e 'ESQUEMAS' laterais para não contar em duplicidade.
-	- Se não tiver certeza, retorne 0 para o alvo e adicione um campo '_avisos' (lista de strings) no JSON.
+Regras rígidas:
+- Analise APENAS a vista principal de 'PLANTA BAIXA'.
+- Ignore completamente 'ISOMÉTRICOS', 'DETALHES' e 'ESQUEMAS' laterais para não contar em duplicidade.
+- Se não tiver certeza, retorne 0 para o alvo e adicione um campo '_avisos' (lista de strings) no JSON.
 
-	Disciplina (opcional): {disciplina}
+Disciplina (opcional): {disciplina}
 
-	Alvos:
-	{alvos_formatados}
+Alvos:
+{alvos_formatados}
 
-	Formato de saída (JSON puro):
-	- As chaves devem ser exatamente os nomes dos alvos.
-	- Os valores devem ser números inteiros.
-	- Você pode incluir também a chave opcional "_avisos": ["..."].
+Formato de saída (JSON puro):
+- As chaves devem ser exatamente os nomes dos alvos.
+- Os valores devem ser números inteiros.
+- Você pode incluir também a chave opcional "_avisos": ["..."].
 """
