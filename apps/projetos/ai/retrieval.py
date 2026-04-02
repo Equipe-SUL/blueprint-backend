@@ -1,23 +1,29 @@
 from .embeddings import get_vector_store
 
-def buscar_contexto_sinapi(termo_busca: str, k: int = 3) -> str:
+def buscar_contexto_sinapi(termo_busca: str, k: int = 5, disciplina: str = None) -> str:
     """
-    Busca na base vetorial os 'k' itens da SINAPI mais parecidos com o termo de busca.
-    Retorna uma string formatada pronta para ser injetada no Prompt da LLM.
+    Realiza a busca vetorial no ChromaDB filtrando pela disciplina da engenharia.
     """
     if not termo_busca or not termo_busca.strip():
-        return ""
+        return "Nenhum termo de busca fornecido."
         
     vector_store = get_vector_store()
-    retriever = vector_store.as_retriever(search_kwargs={"k": k})
     
-    # Executa a busca vetorial
-    documentos_encontrados = retriever.invoke(termo_busca)
+    # Criamos o filtro se a disciplina for informada
+    search_kwargs = {"k": k}
+    if disciplina:
+        # O ChromaDB busca nos metadados que configuramos no embeddings.py
+        search_kwargs["filter"] = {"disciplina": disciplina.lower().strip()}
     
-    if not documentos_encontrados:
-        return "Nenhum material correspondente encontrado na SINAPI."
+    # Criamos o buscador com o filtro aplicado
+    retriever = vector_store.as_retriever(search_kwargs=search_kwargs)
     
-    # Formata os resultados em uma única string
-    resultados_formatados = "\n".join([f"- {doc.page_content}" for doc in documentos_encontrados])
+    # Faz a busca
+    docs = retriever.invoke(termo_busca)
     
-    return resultados_formatados
+    if not docs:
+        return "Nenhum material correspondente encontrado na base SINAPI para esta disciplina."
+    
+    # Formata a resposta para a LLM ler
+    contexto = "\n".join([f"- {d.page_content}" for d in docs])
+    return contexto

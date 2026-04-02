@@ -1,5 +1,4 @@
 import os
-import json
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -17,24 +16,33 @@ def get_embeddings_model():
 def popular_banco_sinapi_teste(vector_store: Chroma):
     """
     Função utilitária para injetar dados falsos da SINAPI apenas para validar a PoC.
-    No futuro, vocês podem ler um CSV real aqui.
+    Agora inclui a tag 'disciplina' para evitar confusões de orçamentação.
     """
     dados_mock = [
-        {"codigo": "73942/002", "descricao": "Concreto usinado bombeavel fck 25 MPa", "preco": 450.00, "unidade": "m3"},
-        {"codigo": "92873", "descricao": "Armacao de pilar ou viga baldrame aco CA-50", "preco": 12.00, "unidade": "kg"},
-        {"codigo": "12345", "descricao": "Caixa de inspecao em alvenaria", "preco": 150.00, "unidade": "un"},
-        {"codigo": "54321", "descricao": "Tubo PVC Esgoto 100mm", "preco": 35.00, "unidade": "m"}
+        {"codigo": "73942", "descricao": "Concreto usinado bombeavel fck 25 MPa", "preco": 450.00, "unidade": "m3", "disciplina": "estrutural"},
+        {"codigo": "92873", "descricao": "Armacao de pilar ou viga baldrame aco CA-50", "preco": 12.00, "unidade": "kg", "disciplina": "estrutural"},
+        {"codigo": "12345", "descricao": "Caixa de inspecao em alvenaria", "preco": 150.00, "unidade": "un", "disciplina": "hidrossanitario"},
+        {"codigo": "54321", "descricao": "Tubo PVC Esgoto 100mm", "preco": 35.00, "unidade": "m", "disciplina": "hidrossanitario"},
+        {"codigo": "99999", "descricao": "Eletroduto PVC Corrugado 32mm", "preco": 15.00, "unidade": "m", "disciplina": "eletrico"}
     ]
     
     documentos = []
     for item in dados_mock:
-        # O 'page_content' é o que a IA vai ler. O 'metadata' são dados de apoio.
+        # O 'page_content' é o que a IA vai ler. O 'metadata' são as etiquetas para filtro.
         conteudo = f"SINAPI {item['codigo']}: {item['descricao']} - Preço: R${item['preco']} por {item['unidade']}"
-        doc = Document(page_content=conteudo, metadata={"origem": "sinapi", "preco": item["preco"], "unidade": item["unidade"]})
+        doc = Document(
+            page_content=conteudo, 
+            metadata={
+                "origem": "sinapi", 
+                "preco": item["preco"], 
+                "unidade": item["unidade"],
+                "disciplina": item["disciplina"] # <-- A ETIQUETA MÁGICA
+            }
+        )
         documentos.append(doc)
     
     vector_store.add_documents(documentos)
-    print("Banco SINAPI populado com sucesso!")
+    print("Banco SINAPI populado com sucesso (com filtros de disciplina)!")
 
 def get_vector_store() -> Chroma:
     """
@@ -51,7 +59,6 @@ def get_vector_store() -> Chroma:
     )
     
     # Se o banco acabou de ser criado e está vazio, nós o populamos
-    # Em produção, você comentaria essa validação após a carga inicial.
     try:
         if vector_store._collection.count() == 0:
             popular_banco_sinapi_teste(vector_store)

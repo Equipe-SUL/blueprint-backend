@@ -1,160 +1,105 @@
-from __future__ import annotations
-
-import json
-import re
 import asyncio
-from collections import defaultdict
-from decimal import Decimal
-from typing import Any, Iterable
-from time import perf_counter
-
+import json
+from typing import Any, List, Dict, Optional
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import PydanticOutputParser
 
 from .client import get_chat_llm
-from .schemas import ItensProjetoLLMSaida
 from .prompts import INTERPRETATION_SYSTEM_PROMPT, INTERPRETATION_USER_PROMPT
+from .retrieval import buscar_contexto_sinapi  # Importamos o buscador do RAG
+from ..schemas import ItemOrcamento, RespostaIA
 
-# NOVO IMPORT: Trazendo o buscador do RAG que criamos no Passo 1
-from .retrieval import buscar_contexto_sinapi
-
-# Uso principal do interpretation.py é receber a extração DXF, interpretar o JSON e devolver uma lista de itens de projeto (descricao, unidade, quantidade, preco_unitario) para serem inseridos no banco.
-
-CHUNK_SIZE = 200  
-CHUNK_CONCURRENCY = 4  
-_RE_MTEXT_FMT = re.compile(r"\{\\[^;]+;([^}]*)\}") 
-
-def _clean_mtext(texto: str) -> str:
-    txt = (texto or "").strip()
-    if not txt:
-        return ""
-    txt = txt.replace("\\P", " ")
-    txt = _RE_MTEXT_FMT.sub(r"\1", txt)
-    txt = txt.replace("%%C", "Ø")
-    txt = re.sub(r"\s+", " ", txt).strip()
-    return txt
-
-def _chunked(items: list[dict[str, Any]], size: int) -> Iterable[list[dict[str, Any]]]:
-    for i in range(0, len(items), size):
-        yield items[i:i + size]
-
-def _merge_saidas(saidas: list[ItensProjetoLLMSaida]) -> ItensProjetoLLMSaida:
-    itens_por_chave: dict[tuple[str, str], dict[str, Any]] = {}
-    avisos: list[str] = []
-
-    for saida in saidas:
-        avisos.extend(saida.avisos or [])
-        for item in saida.itens:
-            desc = " ".join(item.descricao.strip().split())
-            un = item.unidade.strip()
-            chave = (desc.lower(), un.lower())
-
-            if chave not in itens_por_chave:
-                itens_por_chave[chave] = {
-                    "descricao": desc,
-                    "unidade": un,
-                    "quantidade": Decimal(item.quantidade),
-                    "preco_unitario": Decimal(item.preco_unitario),
-                    "origem": item.origem,
-                    "justificativa": item.justificativa,
-                }
-            else:
-                itens_por_chave[chave]["quantidade"] += Decimal(item.quantidade)
-
-    merged = {
-        "itens": list(itens_por_chave.values()),
-        "avisos": avisos,
-    }
-    return ItensProjetoLLMSaida.model_validate(merged)
-
+# Configurações de processamento
+CHUNK_SIZE = 5         # Quantos itens do DXF processamos por vez
+CHUNK_CONCURRENCY = 1  # Mantemos em 1 para não travar PCs com pouca RAM
 
 def interpretar_itens_extraidos_dxf(
-    itens_extraidos: dict[str, Any],
-    *,
-    tipo_projeto: list[str] | None = None,
-) -> ItensProjetoLLMSaida:
-    t_start = perf_counter()
-    print("[interpretar] início do fluxo", flush=True)
+    itens_extraidos: Dict[str, Any], 
+    tipo_projeto: List[str]
+) -> RespostaIA:
+    """
+    Função principal que coordena a interpretação dos dados do DXF
+    usando RAG (SINAPI) e contexto visual da VLM.
+    """
+    print(f"[interpretar] início do fluxo para {len(itens_extraidos.get('textos_legenda', []))} itens")
     
-    # 1) Normaliza os textos
-    textos_legenda = itens_extraidos.get("textos_legenda") or []
-    textos_norm: list[dict[str, Any]] = []
-    for row in textos_legenda:
-        textos_norm.append(
-            {
-                "texto": _clean_mtext(str(row.get("texto", ""))),
-                "layer": str(row.get("layer", "")),
-            }
-        )
+    # 1) Preparação dos pedaços (chunks) para a IA não se perder
+    textos = itens_extraidos.get("textos_legenda", [])
+    chunks = [textos[i : i + CHUNK_SIZE] for i in range(0, len(textos), CHUNK_SIZE)]
     
-    textos_norm = [r for r in textos_norm if r["texto"]]
-
-    # 2) Contexto fixo
+    # 2) Contexto base que vai para todos os pedaços
+    # Inclui o relatório visual que o Orquestrador injetou
     base_context = {
         "tipo_projeto": tipo_projeto or [],
         "ambientes": itens_extraidos.get("ambientes") or [],
-        "quantidades_por_etiqueta": itens_extraidos.get("quantidades_por_etiqueta") or [],
-        # --- ADIÇÃO PARA O RAG DUPLO (A Visão da VLM) ---
-        "relatorio_visual_vlm": itens_extraidos.get("analise_visual", "Não disponível") 
+        "quantidades_por_etiqueta": itens_extraidos.get("quantidades_por_etiqueta") or {},
+        "relatorio_visual_vlm": itens_extraidos.get("analise_visual", "Não disponível")
     }
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", INTERPRETATION_SYSTEM_PROMPT),
-            ("user", INTERPRETATION_USER_PROMPT),
-        ]
-    )
+    parser = PydanticOutputParser(pydantic_object=RespostaIA)
+    llm = get_chat_llm()
 
-    llm = get_chat_llm().with_structured_output(ItensProjetoLLMSaida, method="json_schema")
-    chain = prompt | llm
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", INTERPRETATION_SYSTEM_PROMPT),
+        ("user", INTERPRETATION_USER_PROMPT),
+    ]).partial(format_instructions=parser.get_format_instructions())
 
-    saidas: list[ItensProjetoLLMSaida] = []
-    base_json = json.dumps(base_context, ensure_ascii=False)
+    chain = prompt | llm | parser
 
-    async def _processar_chunks() -> list[ItensProjetoLLMSaida]:
-        sem = asyncio.Semaphore(CHUNK_CONCURRENCY)
+    async def _invocar_chunk(chunk: List[Dict[str, Any]], index: int) -> RespostaIA:
+        print(f"[interpretar] processando chunk {index+1}...")
+        
+        # --- BUSCA NO RAG (SINAPI) ---
+        # Criamos um termo de busca baseado nos itens deste pedaço
+        termo_busca = " ".join([i.get("texto", "") for i in chunk])
+        
+        # Filtramos pela primeira disciplina do projeto para ser preciso
+        disciplina = tipo_projeto[0] if tipo_projeto else None
+        
+        # O asyncio.to_thread evita que a busca no banco trave o fluxo async
+        contexto_sinapi = await asyncio.to_thread(
+            buscar_contexto_sinapi, 
+            termo_busca, 
+            k=5, 
+            disciplina=disciplina
+        )
 
-        async def _invocar_chunk(idx: int, chunk: list[dict[str, Any]]):
-            chunk_json = json.dumps(chunk, ensure_ascii=False)
-            t_chunk_start = perf_counter()
-            print(f"[interpretar] chunk {idx} -> {len(chunk)} entradas", flush=True)
-            
-            # --- INÍCIO DA INTEGRAÇÃO RAG ---
-            # Extraímos as palavras deste chunk para usar como busca na SINAPI
-            textos_do_chunk = " ".join([item["texto"] for item in chunk])
-            # Limitamos a busca aos primeiros 500 caracteres para ser rápido
-            termo_para_busca = textos_do_chunk[:500] 
-            
-            # Buscamos no ChromaDB usando asyncio.to_thread para não travar o loop assíncrono
-            contexto_sinapi = await asyncio.to_thread(buscar_contexto_sinapi, termo_para_busca, 5)
-            # --- FIM DA INTEGRAÇÃO RAG ---
-
-            async with sem:
-                saida = await chain.ainvoke({
-                    "base_json": base_json, 
-                    "chunk_json": chunk_json,
-                    "contexto_sinapi": contexto_sinapi # Injetamos a SINAPI no Prompt!
-                })
-                
-            print(
-                f"[interpretar] chunk {idx} concluído em {perf_counter() - t_chunk_start:.2f}s",
-                flush=True,
-            )
+        try:
+            saida = await chain.ainvoke({
+                "base_json": json.dumps(base_context, ensure_ascii=False),
+                "contexto_sinapi": contexto_sinapi,
+                "chunk_json": json.dumps(chunk, ensure_ascii=False),
+            })
             return saida
+        except Exception as e:
+            print(f"❌ Erro no chunk {index+1}: {e}")
+            return RespostaIA(itens=[], resumo=f"Erro no processamento: {str(e)}", avisos=["Falha técnica no chunk"])
 
-        tasks = [
-            _invocar_chunk(idx, chunk)
-            for idx, chunk in enumerate(_chunked(textos_norm, CHUNK_SIZE), start=1)
-        ]
+    async def _processar_chunks():
+        semaphore = asyncio.Semaphore(CHUNK_CONCURRENCY)
+        async def sem_task(chunk, i):
+            async with semaphore:
+                return await _invocar_chunk(chunk, i)
+        
+        tasks = [sem_task(c, i) for i, c in enumerate(chunks)]
         return await asyncio.gather(*tasks)
 
-    saidas.extend(asyncio.run(_processar_chunks()))
+    # Executa as tarefas assíncronas
+    resultados_chunks = asyncio.run(_processar_chunks())
 
-    # 4) REDUCE: consolida tudo em uma única saída
-    t_merge_start = perf_counter()
-    resultado_final = _merge_saidas(saidas)
-    print(
-        f"[interpretar] merge concluído em {perf_counter() - t_merge_start:.2f}s; "
-        f"total {perf_counter() - t_start:.2f}s",
-        flush=True,
+    # 3) Consolidação dos resultados
+    todos_itens = []
+    todos_avisos = []
+    resumo_final = ""
+
+    for res in resultados_chunks:
+        todos_itens.extend(res.itens)
+        if res.avisos:
+            todos_avisos.extend(res.avisos)
+        resumo_final += f" {res.resumo}"
+
+    return RespostaIA(
+        itens=todos_itens,
+        resumo=resumo_final.strip(),
+        avisos=list(set(todos_avisos)) # Remove avisos duplicados
     )
-    return resultado_final
