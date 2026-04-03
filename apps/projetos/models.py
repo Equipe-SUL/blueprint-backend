@@ -52,15 +52,27 @@ class ArquivoUpload(models.Model):
         return f"{self.nome_original} [{self.status_processamento}]"
     
     
+class CatalogoItem(models.Model):
+    descricao = models.CharField(max_length=255, unique=True)
+    unidade = models.CharField(max_length=20)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.descricao
+    
+
     
 class ItemProjeto(models.Model):
     class Origem(models.TextChoices):
         SINAPI = 'sinapi', 'SINAPI'
         PROPRIO = 'proprio', 'Composição Própria'
+        COTACAO_MANUAL = 'cotacao_manual', 'Cotação Manual'
         
     # Relacionamos o item ao Projeto e ao Arquivo que o gerou (CA.2)
     projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name='itens')
-    arquivo = models.ForeignKey(ArquivoUpload, on_delete=models.CASCADE, related_name='itens_extraidos')
+    arquivo = models.ForeignKey(ArquivoUpload, on_delete=models.CASCADE, related_name='itens_extraidos' ,null=True, blank=True)
+    
+    catalogo = models.ForeignKey(CatalogoItem, on_delete=models.SET_NULL, null=True, blank=True, related_name='usos_em_projetos')
     
     # Campos de dados do item (Exemplos comuns de itens de obra)
     descricao = models.TextField()
@@ -81,5 +93,5 @@ class ItemProjeto(models.Model):
         return f"{self.descricao[:30]}... ({self.projeto.nome_obra})"   
     
 
-    
+        
     

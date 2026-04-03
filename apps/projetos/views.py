@@ -13,8 +13,8 @@ from .services import extrair_dados_dxf, extrair_dados_excel
 from .ai.interpretation import interpretar_itens_extraidos_dxf
 
 
-from .models import Projeto, ArquivoUpload , ItemProjeto
-from .serializers import UploadArquivoSerializer, ProjetoSerializer , ItemProjetoSerializer
+from .models import Projeto, ArquivoUpload , ItemProjeto, CatalogoItem
+from .serializers import UploadArquivoSerializer, ProjetoSerializer , ItemProjetoSerializer 
 
 class ProjetosViewSet(viewsets.ModelViewSet):
     '''Exibindo todos os Projetos'''
@@ -167,12 +167,33 @@ class ItemProjetoView(APIView):
         projeto = get_object_or_404(Projeto, id=projeto_id)
         itens_data = request.data
         
-        if not isinstance(itens_data, list):
+        # 1. Identifica se é cadastro manual (um objeto { }) ou IA (uma lista [ ])
+        is_manual = isinstance(itens_data, dict)
+        
+        if is_manual:
+            # 2. MÁGICA DO CATÁLOGO: Pega ou Cria o item no CatalogoItem
+            descricao = itens_data.get('descricao_original', '').strip()
+            unidade = itens_data.get('unidade', '').strip()
+            
+            if descricao and unidade:
+                # O get_or_create evita itens duplicados no catálogo global da empresa!
+                item_catalogo, created = CatalogoItem.objects.get_or_create(
+                    descricao=descricao,
+                    defaults={'unidade': unidade}
+                )
+                # Injeta o ID do catálogo no JSON antes de passar pro Serializer
+                itens_data['catalogo'] = item_catalogo.id
+                
+            # Transforma o objeto em uma lista de 1 item, para padronizar o código abaixo
+            itens_data = [itens_data]
+            
+        elif not isinstance(itens_data, list):
             return Response(
-                {"error": "O corpo da requisição deve ser uma lista de itens."}, 
+                {"error": "O corpo da requisição deve ser um objeto (manual) ou uma lista de itens (IA)."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # 3. Injeta o ID do projeto em todos os itens que chegaram
         for item in itens_data:
             item['projeto'] = projeto.id
 
@@ -181,19 +202,26 @@ class ItemProjetoView(APIView):
         if serializer.is_valid():
             try:
                 with transaction.atomic():
-                    itens_salvos = serializer.save()
+                    # 4. Define a origem baseada na forma que o dado chegou (RN.2)
+                    origem_salvar = ItemProjeto.Origem.COTACAO_MANUAL if is_manual else ItemProjeto.Origem.SINAPI
+                    
+                    # Salva no banco de dados injetando a origem correta
+                    itens_salvos = serializer.save(origem=origem_salvar)
 
+                    # 5. Atualiza os arquivos processados (apenas se houver arquivo vinculado)
                     arquivos_ids = set([item.arquivo.id for item in itens_salvos if getattr(item, 'arquivo', None)])
                     if arquivos_ids:
                         ArquivoUpload.objects.filter(id__in=arquivos_ids).update(
                             status_processamento=ArquivoUpload.Status.PROCESSADO
                         )
 
-                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                    # 6. Retorna 201. Se foi manual, retorna um objeto só. Se foi IA, retorna a lista.
+                    dados_retorno = serializer.data[0] if is_manual else serializer.data
+                    return Response(dados_retorno, status=status.HTTP_201_CREATED)
 
             except Exception as e:
                 return Response(
-                    {"error": f"Erro interno ao salvar os itens: {str(e)}"}, 
+                    {"error": f"Erro interno ao salvar: {str(e)}"}, 
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
         else:
