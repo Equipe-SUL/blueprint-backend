@@ -58,7 +58,7 @@ def analisar_imagem_com_vlm(
     payload = {
         "model": config.ollama_vl_model,
         "prompt": prompt,
-        "image": [imagem_b64],
+        "images": [imagem_b64],
         "format": "json",
         "stream": False,
         "temperature": config.ollama_temperature,

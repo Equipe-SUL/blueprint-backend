@@ -7,10 +7,10 @@ from langchain_core.output_parsers import PydanticOutputParser
 from .client import get_chat_llm
 from .prompts import INTERPRETATION_SYSTEM_PROMPT, INTERPRETATION_USER_PROMPT
 from .retrieval import buscar_contexto_sinapi  # Importamos o buscador do RAG
-from ..schemas import ItemOrcamento, RespostaIA
+from .schemas import ItemOrcamento, RespostaIA
 
 # Configurações de processamento
-CHUNK_SIZE = 5         # Quantos itens do DXF processamos por vez
+CHUNK_SIZE = 4         # Quantos itens do DXF processamos por vez
 CHUNK_CONCURRENCY = 1  # Mantemos em 1 para não travar PCs com pouca RAM
 
 def interpretar_itens_extraidos_dxf(
