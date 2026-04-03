@@ -6,29 +6,26 @@ from langchain_core.output_parsers import PydanticOutputParser
 
 from .client import get_chat_llm
 from .prompts import INTERPRETATION_SYSTEM_PROMPT, INTERPRETATION_USER_PROMPT
-from .retrieval import buscar_contexto_sinapi  # Importamos o buscador do RAG
-from ..schemas import ItemOrcamento, RespostaIA
+from .retrieval import buscar_contexto_sinapi
+# CORREÇÃO 1: Ponto único para importar do mesmo diretório e classes atualizadas
+from .schemas import ItemProjetoLLM, ItensProjetoLLMSaida
 
-# Configurações de processamento
-CHUNK_SIZE = 5         # Quantos itens do DXF processamos por vez
-CHUNK_CONCURRENCY = 1  # Mantemos em 1 para não travar PCs com pouca RAM
+CHUNK_SIZE = 5
+CHUNK_CONCURRENCY = 1
 
 def interpretar_itens_extraidos_dxf(
     itens_extraidos: Dict[str, Any], 
     tipo_projeto: List[str]
-) -> RespostaIA:
+) -> ItensProjetoLLMSaida: # CORREÇÃO 2: Tipagem de saída atualizada
     """
     Função principal que coordena a interpretação dos dados do DXF
     usando RAG (SINAPI) e contexto visual da VLM.
     """
     print(f"[interpretar] início do fluxo para {len(itens_extraidos.get('textos_legenda', []))} itens")
     
-    # 1) Preparação dos pedaços (chunks) para a IA não se perder
     textos = itens_extraidos.get("textos_legenda", [])
     chunks = [textos[i : i + CHUNK_SIZE] for i in range(0, len(textos), CHUNK_SIZE)]
     
-    # 2) Contexto base que vai para todos os pedaços
-    # Inclui o relatório visual que o Orquestrador injetou
     base_context = {
         "tipo_projeto": tipo_projeto or [],
         "ambientes": itens_extraidos.get("ambientes") or [],
@@ -36,7 +33,8 @@ def interpretar_itens_extraidos_dxf(
         "relatorio_visual_vlm": itens_extraidos.get("analise_visual", "Não disponível")
     }
 
-    parser = PydanticOutputParser(pydantic_object=RespostaIA)
+    # CORREÇÃO 3: Usando o PydanticOutputParser com o schema correto
+    parser = PydanticOutputParser(pydantic_object=ItensProjetoLLMSaida)
     llm = get_chat_llm()
 
     prompt = ChatPromptTemplate.from_messages([
@@ -46,17 +44,12 @@ def interpretar_itens_extraidos_dxf(
 
     chain = prompt | llm | parser
 
-    async def _invocar_chunk(chunk: List[Dict[str, Any]], index: int) -> RespostaIA:
+    async def _invocar_chunk(chunk: List[Dict[str, Any]], index: int) -> ItensProjetoLLMSaida:
         print(f"[interpretar] processando chunk {index+1}...")
         
-        # --- BUSCA NO RAG (SINAPI) ---
-        # Criamos um termo de busca baseado nos itens deste pedaço
         termo_busca = " ".join([i.get("texto", "") for i in chunk])
-        
-        # Filtramos pela primeira disciplina do projeto para ser preciso
         disciplina = tipo_projeto[0] if tipo_projeto else None
         
-        # O asyncio.to_thread evita que a busca no banco trave o fluxo async
         contexto_sinapi = await asyncio.to_thread(
             buscar_contexto_sinapi, 
             termo_busca, 
@@ -73,7 +66,8 @@ def interpretar_itens_extraidos_dxf(
             return saida
         except Exception as e:
             print(f"❌ Erro no chunk {index+1}: {e}")
-            return RespostaIA(itens=[], resumo=f"Erro no processamento: {str(e)}", avisos=["Falha técnica no chunk"])
+            # Em caso de erro, devolvemos o objeto vazio, mas com o aviso
+            return ItensProjetoLLMSaida(itens=[], avisos=[f"Falha técnica no chunk {index+1}: {str(e)}"])
 
     async def _processar_chunks():
         semaphore = asyncio.Semaphore(CHUNK_CONCURRENCY)
@@ -84,22 +78,18 @@ def interpretar_itens_extraidos_dxf(
         tasks = [sem_task(c, i) for i, c in enumerate(chunks)]
         return await asyncio.gather(*tasks)
 
-    # Executa as tarefas assíncronas
     resultados_chunks = asyncio.run(_processar_chunks())
 
-    # 3) Consolidação dos resultados
+    # Consolidação dos resultados
     todos_itens = []
     todos_avisos = []
-    resumo_final = ""
 
     for res in resultados_chunks:
         todos_itens.extend(res.itens)
         if res.avisos:
             todos_avisos.extend(res.avisos)
-        resumo_final += f" {res.resumo}"
 
-    return RespostaIA(
+    return ItensProjetoLLMSaida(
         itens=todos_itens,
-        resumo=resumo_final.strip(),
-        avisos=list(set(todos_avisos)) # Remove avisos duplicados
+        avisos=list(set(todos_avisos))
     )
