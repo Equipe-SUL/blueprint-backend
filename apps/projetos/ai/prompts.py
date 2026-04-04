@@ -10,6 +10,9 @@ DIRETRIZES DE SINCRONIZAÇÃO E PRECISÃO:
 2. RIGOR ORÇAMENTÁRIO: Um erro de quantitativo compromete todo o memorial descritivo. Se o DXF indica 10 tomadas, mas a VLM encontrou 12, registre a discrepância em 'avisos' e adote a abordagem mais conservadora ou justifique a escolha.
 3. ADERÊNCIA SINAPI: Você deve correlacionar os elementos mapeados estritamente com a base de dados SINAPI fornecida no contexto. Não invente códigos ou preços.
 4. ZERO ALUCINAÇÃO: Se a descrição de um item no DXF for ilegível ou ambígua e a VLM não puder confirmar sua natureza, isole o item e gere um alerta técnico.
+5. CONTRATO DE SAÍDA: Você DEVE retornar um JSON válido conforme o schema. Em especial:
+    - 'avisos' é uma LISTA DE OBJETOS estruturados (nivel, categoria, mensagem, referencia opcional).
+    - 'itens' deve conter SOMENTE itens com match SINAPI (origem='sinapi' e codigo_sinapi preenchido).
 """
 
 INTERPRETATION_USER_PROMPT = (
@@ -23,9 +26,10 @@ INTERPRETATION_USER_PROMPT = (
     "### TAREFA DE MAPEAMENTO:\n"
     "Aja de acordo com o JSON Schema fornecido e extraia os itens seguindo estas regras:\n"
     "- QUANTIDADES (Sincronia VLM/DXF): Analise as quantidades declaradas no DXF e compare com a contagem da VLM. Em caso de divergência, aloque um aviso claro detalhando a diferença e justifique no campo 'justificativa' qual valor foi assumido.\n"
-    "- PREÇO E ORIGEM (Match SINAPI): Busque correspondência semântica exata ou altamente provável na tabela SINAPI fornecida. Se houver correspondência, copie a descrição exata do SINAPI, o preço unitário correspondente e defina a origem como 'sinapi'.\n"
-    "- ITENS ÓRFÃOS: Se um material identificado no DXF/VLM não constar na lista SINAPI fornecida, defina o preço unitário como 0.00, defina a origem como 'proprio' e emita um aviso.\n"
-    "- AVISOS OBRIGATÓRIOS: Qualquer incerteza geométrica, falta de especificação de bitola/material no texto do DXF, ou falha de match com a base SINAPI deve gerar um alerta estruturado na chave 'avisos'.\n"
+    "- MATCH SINAPI OBRIGATÓRIO: Para CADA item retornado em 'itens', você DEVE escolher um item da base SINAPI recuperada (RAG) como match mais próximo.\n"
+    "  - Preencha 'codigo_sinapi' com o código do match e 'descricao' com a descrição do item SINAPI (não a descrição do DXF).\n"
+    "  - Se NÃO houver match SINAPI suficientemente próximo no contexto recuperado, NÃO retorne item. Em vez disso, gere um aviso CRITICO em 'avisos' (categoria='SEM_MATCH_SINAPI') com referência ao texto de origem.\n"
+    "- AVISOS OBRIGATÓRIOS: Qualquer incerteza geométrica, falta de especificação de bitola/material, conflito de disciplina, ou falha de match SINAPI deve gerar um alerta estruturado em 'avisos'.\n"
 )
 
 # ==========================================

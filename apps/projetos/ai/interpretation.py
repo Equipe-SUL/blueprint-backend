@@ -8,7 +8,7 @@ from .client import get_chat_llm
 from .prompts import INTERPRETATION_SYSTEM_PROMPT, INTERPRETATION_USER_PROMPT
 from .retrieval import buscar_contexto_sinapi
 # CORREÇÃO 1: Ponto único para importar do mesmo diretório e classes atualizadas
-from .schemas import ItemProjetoLLM, ItensProjetoLLMSaida
+from .schemas import AvisoLLM, ItemProjetoLLM, ItensProjetoLLMSaida
 
 CHUNK_SIZE = 5
 CHUNK_CONCURRENCY = 1
@@ -44,6 +44,43 @@ def interpretar_itens_extraidos_dxf(
 
     chain = prompt | llm | parser
 
+    def _dedup_avisos(avisos: List[AvisoLLM]) -> List[AvisoLLM]:
+        vistos: set[tuple[str, str, str, str | None]] = set()
+        saida: List[AvisoLLM] = []
+        for a in avisos:
+            key = (a.nivel, a.categoria, a.mensagem, a.referencia)
+            if key in vistos:
+                continue
+            vistos.add(key)
+            saida.append(a)
+        return saida
+
+    def _filtrar_itens_somente_sinapi(itens: List[ItemProjetoLLM], avisos: List[AvisoLLM]) -> List[ItemProjetoLLM]:
+        itens_validos: List[ItemProjetoLLM] = []
+        for item in itens:
+            if getattr(item, "origem", None) != "sinapi":
+                avisos.append(
+                    AvisoLLM(
+                        nivel="ALTO",
+                        categoria="ITEM_REJEITADO",
+                        mensagem="Item descartado por estar fora da SINAPI (origem != 'sinapi').",
+                        referencia=(item.descricao or None),
+                    )
+                )
+                continue
+            if not (item.codigo_sinapi and str(item.codigo_sinapi).strip()):
+                avisos.append(
+                    AvisoLLM(
+                        nivel="CRITICO",
+                        categoria="ITEM_REJEITADO",
+                        mensagem="Item descartado por não conter codigo_sinapi (match SINAPI obrigatório nesta fase).",
+                        referencia=(item.descricao or None),
+                    )
+                )
+                continue
+            itens_validos.append(item)
+        return itens_validos
+
     async def _invocar_chunk(chunk: List[Dict[str, Any]], index: int) -> ItensProjetoLLMSaida:
         print(f"[interpretar] processando chunk {index+1}...")
         
@@ -63,11 +100,23 @@ def interpretar_itens_extraidos_dxf(
                 "contexto_sinapi": contexto_sinapi,
                 "chunk_json": json.dumps(chunk, ensure_ascii=False),
             })
-            return saida
+            # Pós-processamento: reforça contrato (sem itens fora da SINAPI)
+            avisos_chunk: List[AvisoLLM] = list(saida.avisos or [])
+            itens_filtrados = _filtrar_itens_somente_sinapi(list(saida.itens or []), avisos_chunk)
+            return ItensProjetoLLMSaida(itens=itens_filtrados, avisos=_dedup_avisos(avisos_chunk))
         except Exception as e:
             print(f"❌ Erro no chunk {index+1}: {e}")
             # Em caso de erro, devolvemos o objeto vazio, mas com o aviso
-            return ItensProjetoLLMSaida(itens=[], avisos=[f"Falha técnica no chunk {index+1}: {str(e)}"])
+            return ItensProjetoLLMSaida(
+                itens=[],
+                avisos=[
+                    AvisoLLM(
+                        nivel="CRITICO",
+                        categoria="FALHA_TECNICA_CHUNK",
+                        mensagem=f"Falha técnica no chunk {index+1}: {str(e)}",
+                    )
+                ],
+            )
 
     async def _processar_chunks():
         semaphore = asyncio.Semaphore(CHUNK_CONCURRENCY)
@@ -82,14 +131,15 @@ def interpretar_itens_extraidos_dxf(
 
     # Consolidação dos resultados
     todos_itens = []
-    todos_avisos = []
+    todos_avisos: List[AvisoLLM] = []
 
     for res in resultados_chunks:
         todos_itens.extend(res.itens)
         if res.avisos:
             todos_avisos.extend(res.avisos)
 
-    return ItensProjetoLLMSaida(
-        itens=todos_itens,
-        avisos=list(set(todos_avisos))
-    )
+    # Dedup final de avisos + reforço final do contrato
+    avisos_finais = _dedup_avisos(todos_avisos)
+    itens_finais = _filtrar_itens_somente_sinapi(list(todos_itens), avisos_finais)
+
+    return ItensProjetoLLMSaida(itens=itens_finais, avisos=_dedup_avisos(avisos_finais))
