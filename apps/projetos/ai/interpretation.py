@@ -106,6 +106,9 @@ def interpretar_itens_extraidos_dxf(
             return ItensProjetoLLMSaida(itens=itens_filtrados, avisos=_dedup_avisos(avisos_chunk))
         except Exception as e:
             print(f"❌ Erro no chunk {index+1}: {e}")
+            erro_resumido = f"{type(e).__name__}: {str(e)}"
+            if len(erro_resumido) > 900:
+                erro_resumido = erro_resumido[:900] + "..."
             # Em caso de erro, devolvemos o objeto vazio, mas com o aviso
             return ItensProjetoLLMSaida(
                 itens=[],
@@ -113,7 +116,7 @@ def interpretar_itens_extraidos_dxf(
                     AvisoLLM(
                         nivel="CRITICO",
                         categoria="FALHA_TECNICA_CHUNK",
-                        mensagem=f"Falha técnica no chunk {index+1}: {str(e)}",
+                        mensagem=f"Falha técnica no chunk {index+1}: {erro_resumido}",
                     )
                 ],
             )

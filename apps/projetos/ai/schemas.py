@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Schema para saída do mapeamento de itens da LLM. a IA vai devolver uma saida JSON no formato definido aqui.
 
@@ -44,7 +44,9 @@ class ItemProjetoLLM(BaseModel):
 class AvisoLLM(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
-    nivel: Literal["INFO", "BAIXO", "MEDIO", "ALTO", "CRITICO"] = "INFO"
+    # Mantemos um conjunto pequeno e estável para UI/relatórios.
+    # A LLM pode devolver variações (ex.: "ALERTA"); normalizamos no validator.
+    nivel: str = "INFO"
     categoria: str = Field(min_length=3, max_length=80)
     mensagem: str = Field(min_length=3, max_length=1000)
     referencia: str | None = Field(
@@ -52,6 +54,42 @@ class AvisoLLM(BaseModel):
         max_length=400,
         description="Opcional: trecho do DXF/identificador que originou o aviso.",
     )
+
+    @field_validator("nivel", mode="before")
+    @classmethod
+    def _normalizar_nivel(cls, v: Any) -> str:
+        if v is None:
+            return "INFO"
+        valor = str(v).strip().upper()
+
+        mapeamento = {
+            "ALERTA": "ALTO",
+            "WARNING": "MEDIO",
+            "WARN": "MEDIO",
+            "CRITICAL": "CRITICO",
+            "CRITICO": "CRITICO",
+            "HIGH": "ALTO",
+            "MEDIUM": "MEDIO",
+            "LOW": "BAIXO",
+        }
+
+        valor = mapeamento.get(valor, valor)
+        permitidos = {"INFO", "BAIXO", "MEDIO", "ALTO", "CRITICO"}
+        return valor if valor in permitidos else "INFO"
+
+    @field_validator("mensagem", mode="before")
+    @classmethod
+    def _truncar_mensagem(cls, v: Any) -> str:
+        if v is None:
+            return "Aviso sem mensagem."
+        texto = str(v).strip()
+        if not texto:
+            return "Aviso sem mensagem."
+        limite = 1000
+        if len(texto) <= limite:
+            return texto
+        sufixo = "... (truncado)"
+        return texto[: max(0, limite - len(sufixo))] + sufixo
 
 
 class ItensProjetoLLMSaida(BaseModel):
