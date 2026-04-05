@@ -1,0 +1,874 @@
+{
+  "grupos": [
+    {
+      "nome": "Acessibilidade",
+      "slug": "acessibilidade",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Alvenaria de Vedação",
+      "slug": "alvenaria_de_vedacao",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Alvenaria Estrutural - Blocos Cerâmicos",
+      "slug": "alvenaria_estrutural_blocos_ceramicos",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Alvenaria Estrutural - Blocos de Concreto",
+      "slug": "alvenaria_estrutural_blocos_de_concreto",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Alvenarias Diversas",
+      "slug": "alvenarias_diversas",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Argamassas",
+      "slug": "argamassas",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Armação de Estacas",
+      "slug": "armacao_de_estacas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Armação para Estruturas de Concreto Armado",
+      "slug": "armacao_para_estruturas_de_concreto_armado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Arrasamento de Estacas",
+      "slug": "arrasamento_de_estacas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Asfalto",
+      "slug": "asfalto",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Assentamento de Tubos de Esgoto em PVC e PEAD",
+      "slug": "assentamento_de_tubos_de_esgoto_em_pvc_e_pead",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Assentamento de tubos de esgoto ou drenagem pluvial em concreto",
+      "slug": "assentamento_de_tubos_de_esgoto_ou_drenagem_pluvial_em_concreto",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Assentamento de Tubos de PVC e Metálicos em Redes de Água",
+      "slug": "assentamento_de_tubos_de_pvc_e_metalicos_em_redes_de_agua",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Aterro e Reaterro de Valas",
+      "slug": "aterro_e_reaterro_de_valas",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Aterros, Bases, Sub bases e Imprimações",
+      "slug": "aterros_bases_sub_bases_e_imprimacoes",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Bocas para Bueiros",
+      "slug": "bocas_para_bueiros",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Bombas Hidráulicas - Centrífugas, Horizontais e Submersíveis",
+      "slug": "bombas_hidraulicas_centrifugas_horizontais_e_submersiveis",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Brises",
+      "slug": "brises",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Caixas de Água para Edificações",
+      "slug": "caixas_de_agua_para_edificacoes",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Caixas Enterradas",
+      "slug": "caixas_enterradas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Canaletas, Grelhas e Caixas com Grelha para Drenagem",
+      "slug": "canaletas_grelhas_e_caixas_com_grelha_para_drenagem",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Cercas, Protetores e Alambrados",
+      "slug": "cercas_protetores_e_alambrados",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Chapisco",
+      "slug": "chapisco",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Concretagem para Estruturas de Concreto Armado",
+      "slug": "concretagem_para_estruturas_de_concreto_armado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Concreto Projetado",
+      "slug": "concreto_projetado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Concreto Protendido",
+      "slug": "concreto_protendido",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Contrapiso",
+      "slug": "contrapiso",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Custos Horários Produtivo e Improdutivo dos Equipamentos",
+      "slug": "custos_horarios_produtivo_e_improdutivo_dos_equipamentos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Demolições e Remoções",
+      "slug": "demolicoes_e_remocoes",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Depreciação, Juros, Impostos e Seguros, Manutenção e Materiais na Operação dos Equipamentos",
+      "slug": "depreciacao_juros_impostos_e_seguros_manutencao_e_materiais_na_operacao_dos_equipamentos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Detecção de incêndio e alarme",
+      "slug": "deteccao_de_incendio_e_alarme",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Dissipadores de Energia",
+      "slug": "dissipadores_de_energia",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Dragagem",
+      "slug": "dragagem",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Drenagem de ar condicionado",
+      "slug": "drenagem_de_ar_condicionado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Drenos",
+      "slug": "drenos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Dutos para ar condicionado",
+      "slug": "dutos_para_ar_condicionado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Eletrocalhas",
+      "slug": "eletrocalhas",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "ENCARGOS COMPLEMENTARES",
+      "slug": "encargos_complementares",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Energia Solar para Edificações",
+      "slug": "energia_solar_para_edificacoes",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "EQUIPAMENTO (AQUISIÇÃO)",
+      "slug": "equipamento_aquisicao",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "EQUIPAMENTO (LOCAÇÃO)",
+      "slug": "equipamento_locacao",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Equipamentos de Proteção Coletiva",
+      "slug": "equipamentos_de_protecao_coletiva",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Escadas",
+      "slug": "escadas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Escavação de Valas",
+      "slug": "escavacao_de_valas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Escavação em Material de 3ª Categoria",
+      "slug": "escavacao_em_material_de_3a_categoria",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Escavação Horizontal",
+      "slug": "escavacao_horizontal",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Escavação Vertical a Céu Aberto",
+      "slug": "escavacao_vertical_a_ceu_aberto",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Escoramento e Preparo de Fundo de Valas",
+      "slug": "escoramento_e_preparo_de_fundo_de_valas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Esgotamento de Vala e Rebaixamento do Lençol Freático",
+      "slug": "esgotamento_de_vala_e_rebaixamento_do_lencol_freatico",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "ESPECIAIS",
+      "slug": "especiais",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Esquadrias - Janelas",
+      "slug": "esquadrias_janelas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Esquadrias - Portas",
+      "slug": "esquadrias_portas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estacas Broca, Strauss e Escavada com Fluido Estabilizante",
+      "slug": "estacas_broca_strauss_e_escavada_com_fluido_estabilizante",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estacas em Hélice Contínua",
+      "slug": "estacas_em_helice_continua",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estacas Escavadas Sem Fluido Estabilizante",
+      "slug": "estacas_escavadas_sem_fluido_estabilizante",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estacas Metálicas",
+      "slug": "estacas_metalicas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estacas Pré-Moldadas",
+      "slug": "estacas_pre_moldadas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estacas Raiz",
+      "slug": "estacas_raiz",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estrutura e Trama para Cobertura",
+      "slug": "estrutura_e_trama_para_cobertura",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estruturas de Contenção - Estacas, Paredes Diafragma e Mureta Guia",
+      "slug": "estruturas_de_contencao_estacas_paredes_diafragma_e_mureta_guia",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Estruturas de Contenção - Perfis Pranchados, Cortinas e Muros de Arrimo",
+      "slug": "estruturas_de_contencao_perfis_pranchados_cortinas_e_muros_de_arrimo",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estruturas de Madeira",
+      "slug": "estruturas_de_madeira",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Estruturas Pré-Fabricadas e Pré-Moldadas",
+      "slug": "estruturas_pre_fabricadas_e_pre_moldadas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Execução de Grampo para Solo Grampeado",
+      "slug": "execucao_de_grampo_para_solo_grampeado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Execução de Tirantes",
+      "slug": "execucao_de_tirantes",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Fachadas com Placas Cerâmicas e Granito - Insertadas",
+      "slug": "fachadas_com_placas_ceramicas_e_granito_insertadas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Forros",
+      "slug": "forros",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Fossas e Sumidouros",
+      "slug": "fossas_e_sumidouros",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Fundações Rasas (Blocos, Sapatas, Vigas Baldrame)",
+      "slug": "fundacoes_rasas_blocos_sapatas_vigas_baldrame",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Fôrmas Curvas para Paredes de Reservatórios de Concreto",
+      "slug": "formas_curvas_para_paredes_de_reservatorios_de_concreto",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Fôrmas para Estruturas de Concreto Armado",
+      "slug": "formas_para_estruturas_de_concreto_armado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Fôrmas para Pilares Circulares",
+      "slug": "formas_para_pilares_circulares",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Gabiões - Execução de Muro e Proteção Superficial",
+      "slug": "gabioes_execucao_de_muro_e_protecao_superficial",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Galerias com Aduelas de Concreto",
+      "slug": "galerias_com_aduelas_de_concreto",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Gesso",
+      "slug": "gesso",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Graute e Armação",
+      "slug": "graute_e_armacao",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Guarda-Corpo, Corrimão e Grade para Esquadrias",
+      "slug": "guarda_corpo_corrimao_e_grade_para_esquadrias",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Guias e sarjetas",
+      "slug": "guias_e_sarjetas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Iluminação Predial e Monitoramento",
+      "slug": "iluminacao_predial_e_monitoramento",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Impermeabilização, Proteção Mecânica e Tratamento de Junta",
+      "slug": "impermeabilizacao_protecao_mecanica_e_tratamento_de_junta",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações de ar condicionado",
+      "slug": "instalacoes_de_ar_condicionado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações de ar condicionado em cobre",
+      "slug": "instalacoes_de_ar_condicionado_em_cobre",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações de Divisórias Diversas",
+      "slug": "instalacoes_de_divisorias_diversas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações de Gás e Incêndio em Aço e Ferro Galvanizado",
+      "slug": "instalacoes_de_gas_e_incendio_em_aco_e_ferro_galvanizado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações de Gás em PEX Multicamadas",
+      "slug": "instalacoes_de_gas_em_pex_multicamadas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações Elétricas - Eletrodutos Embutidos, Cabos, Caixas, Tomadas e Interruptores",
+      "slug": "instalacoes_eletricas_eletrodutos_embutidos_cabos_caixas_tomadas_e_interruptores",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Instalações Elétricas - Eletrodutos, Conexões e Conduletes Aparentes",
+      "slug": "instalacoes_eletricas_eletrodutos_conexoes_e_conduletes_aparentes",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Instalações Elétricas - Quadros, Cabos, Disjuntores, Contatores e Barramentos Blindados",
+      "slug": "instalacoes_eletricas_quadros_cabos_disjuntores_contatores_e_barramentos_blindados",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Instalações Elétricas - Rede de Distribuição",
+      "slug": "instalacoes_eletricas_rede_de_distribuicao",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações em Cobre",
+      "slug": "instalacoes_em_cobre",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações Hidráulicas - Reservação e Bombas de Recalque",
+      "slug": "instalacoes_hidraulicas_reservacao_e_bombas_de_recalque",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Instalações Hidráulicas em PEX",
+      "slug": "instalacoes_hidraulicas_em_pex",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações Hidráulicas em PPR",
+      "slug": "instalacoes_hidraulicas_em_ppr",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações para Canteiros de Obras",
+      "slug": "instalacoes_para_canteiros_de_obras",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações Prediais de Esgoto - Caixas e Ralos",
+      "slug": "instalacoes_prediais_de_esgoto_caixas_e_ralos",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Instalações Prediais de Esgoto - Tubos e Conexões",
+      "slug": "instalacoes_prediais_de_esgoto_tubos_e_conexoes",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Instalações Prediais de Água Fria em PVC",
+      "slug": "instalacoes_prediais_de_agua_fria_em_pvc",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações Prediais de Água Quente em CPVC",
+      "slug": "instalacoes_prediais_de_agua_quente_em_cpvc",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Instalações Prediais de Águas Pluviais - Tubos, Conexões, Caixas e Ralos",
+      "slug": "instalacoes_prediais_de_aguas_pluviais_tubos_conexoes_caixas_e_ralos",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Lajes Pré-Moldadas",
+      "slug": "lajes_pre_moldadas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Lastro",
+      "slug": "lastro",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Ligações Prediais de Água e Esgoto",
+      "slug": "ligacoes_prediais_de_agua_e_esgoto",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Limpeza de Obra",
+      "slug": "limpeza_de_obra",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Livro SINAPI: Cálculos e Parâmetros",
+      "slug": "livro_sinapi_calculos_e_parametros",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Locação de Obras",
+      "slug": "locacao_de_obras",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Louças e Metais",
+      "slug": "loucas_e_metais",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Luminárias Externas",
+      "slug": "luminarias_externas",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "MAO DE OBRA",
+      "slug": "mao_de_obra",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Massa Única Externa",
+      "slug": "massa_unica_externa",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Massa Única Interna",
+      "slug": "massa_unica_interna",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "MATERIAL",
+      "slug": "material",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Mobiliário Urbano",
+      "slug": "mobiliario_urbano",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Monocapa",
+      "slug": "monocapa",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Montagem de gruas e cremalheiras",
+      "slug": "montagem_de_gruas_e_cremalheiras",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Paisagismo - Plantio",
+      "slug": "paisagismo_plantio",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Paredes de Concreto - Armação",
+      "slug": "paredes_de_concreto_armacao",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Paredes de Concreto - Concretagem",
+      "slug": "paredes_de_concreto_concretagem",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Paredes de Concreto - Estucamento",
+      "slug": "paredes_de_concreto_estucamento",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Paredes de Concreto - Fôrmas",
+      "slug": "paredes_de_concreto_formas",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Paredes em Drywall",
+      "slug": "paredes_em_drywall",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Parquinhos e Equipamentos de Ginástica ao Ar Livre",
+      "slug": "parquinhos_e_equipamentos_de_ginastica_ao_ar_livre",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Passeios de Concreto",
+      "slug": "passeios_de_concreto",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pavimentações Diversas - Paralelepípedos e Pedras Poliédricas",
+      "slug": "pavimentacoes_diversas_paralelepipedos_e_pedras_poliedricas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pavimento Intertravado",
+      "slug": "pavimento_intertravado",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pavimento Rígido de Concreto",
+      "slug": "pavimento_rigido_de_concreto",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Peitoris e Chapins",
+      "slug": "peitoris_e_chapins",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pele de Vidro em Fachadas",
+      "slug": "pele_de_vidro_em_fachadas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Peneiramento e Ensacamento de Areia em Obra",
+      "slug": "peneiramento_e_ensacamento_de_areia_em_obra",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Perfuração Horizontal Direcional - HDD",
+      "slug": "perfuracao_horizontal_direcional_hdd",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pintura em Madeira",
+      "slug": "pintura_em_madeira",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pintura em Superfícies Metálicas",
+      "slug": "pintura_em_superficies_metalicas",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pintura Externa",
+      "slug": "pintura_externa",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pintura Interna",
+      "slug": "pintura_interna",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pintura para Pisos e para Sinalização Horizontal e Vertical",
+      "slug": "pintura_para_pisos_e_para_sinalizacao_horizontal_e_vertical",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Pisos",
+      "slug": "pisos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Postes de Concreto e Metálicos",
+      "slug": "postes_de_concreto_e_metalicos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Poços de Visita e Caixas para Bocas de Lobo",
+      "slug": "pocos_de_visita_e_caixas_para_bocas_de_lobo",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Produção de Concreto",
+      "slug": "producao_de_concreto",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Produção de Concretos e Argamassas Utilizando Agregado Reciclado",
+      "slug": "producao_de_concretos_e_argamassas_utilizando_agregado_reciclado",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Quadras e seus Equipamentos",
+      "slug": "quadras_e_seus_equipamentos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Quadros de automação de bombas",
+      "slug": "quadros_de_automacao_de_bombas",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Radier, Piso de Concreto e Laje sobre Solo",
+      "slug": "radier_piso_de_concreto_e_laje_sobre_solo",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Rasgos e Fixações",
+      "slug": "rasgos_e_fixacoes",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Recomposição de Pavimentos",
+      "slug": "recomposicao_de_pavimentos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Redes de Lógica, Telefonia e Imagem",
+      "slug": "redes_de_logica_telefonia_e_imagem",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Redes de Água e Esgoto em PEAD Liso (Tubos e Conexões)",
+      "slug": "redes_de_agua_e_esgoto_em_pead_liso_tubos_e_conexoes",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Redes Enterradas de Distribuição Elétrica",
+      "slug": "redes_enterradas_de_distribuicao_eletrica",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Remoção de Entulho e Descarte",
+      "slug": "remocao_de_entulho_e_descarte",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Reservatórios de Concreto e Metálicos",
+      "slug": "reservatorios_de_concreto_e_metalicos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Revestimentos Cerâmicos Externos",
+      "slug": "revestimentos_ceramicos_externos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Revestimentos Cerâmicos Internos",
+      "slug": "revestimentos_ceramicos_internos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "SERVIÇOS",
+      "slug": "servicos",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Sinalização Horizontal Viária",
+      "slug": "sinalizacao_horizontal_viaria",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Sinalização Vertical Viária",
+      "slug": "sinalizacao_vertical_viaria",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Sistema de Proteção contra Descargas Atmosféricas - SPDA",
+      "slug": "sistema_de_protecao_contra_descargas_atmosfericas_spda",
+      "disciplina": "eletrica"
+    },
+    {
+      "nome": "Sistemas de Medição",
+      "slug": "sistemas_de_medicao",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Sistemas Hospitalares - Pontos de Consumo",
+      "slug": "sistemas_hospitalares_pontos_de_consumo",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Solda de Topo em Elementos de Aço",
+      "slug": "solda_de_topo_em_elementos_de_aco",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Supressão Vegetal",
+      "slug": "supressao_vegetal",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Telhamento para Cobertura",
+      "slug": "telhamento_para_cobertura",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Transformadores",
+      "slug": "transformadores",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Transporte de Materiais dentro do Canteiro de Obras",
+      "slug": "transporte_de_materiais_dentro_do_canteiro_de_obras",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Transporte Fluvial - Carga e Descarga",
+      "slug": "transporte_fluvial_carga_e_descarga",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Transporte Fluvial - Momento de Transporte",
+      "slug": "transporte_fluvial_momento_de_transporte",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Transporte, Carga e Descarga de Materiais",
+      "slug": "transporte_carga_e_descarga_de_materiais",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Tratamentos Superficiais",
+      "slug": "tratamentos_superficiais",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Tubulação Flangeada para Redes de Água",
+      "slug": "tubulacao_flangeada_para_redes_de_agua",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Tubulões",
+      "slug": "tubuloes",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Tunnel Liner",
+      "slug": "tunnel_liner",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Usinagens",
+      "slug": "usinagens",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Vergas, contravergas e fixação de alvenaria",
+      "slug": "vergas_contravergas_e_fixacao_de_alvenaria",
+      "disciplina": "alvenaria"
+    },
+    {
+      "nome": "Vidros e Espelhos",
+      "slug": "vidros_e_espelhos",
+      "disciplina": "geral"
+    },
+    {
+      "nome": "Válvulas e Registros para Sistemas Prediais",
+      "slug": "valvulas_e_registros_para_sistemas_prediais",
+      "disciplina": "hidraulica"
+    },
+    {
+      "nome": "Válvulas para Redes de Saneamento",
+      "slug": "valvulas_para_redes_de_saneamento",
+      "disciplina": "geral"
+    }
+  ]
+}
