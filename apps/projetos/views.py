@@ -10,6 +10,8 @@ from django.db import transaction
 from rest_framework.parsers import MultiPartParser
 from .services import extrair_dados_dxf, extrair_dados_excel
 
+from .ai.interpretation import interpretar_itens_extraidos_dxf
+
 
 from .models import Projeto, ArquivoUpload , ItemProjeto, CatalogoItem
 from .serializers import UploadArquivoSerializer, ProjetoSerializer , ItemProjetoSerializer 
@@ -19,11 +21,10 @@ class ProjetosViewSet(viewsets.ModelViewSet):
     queryset = Projeto.objects.all()
     serializer_class = ProjetoSerializer
 
-EXTENSOES_PERMITIDAS = ['.dxf'] #['.csv', '.xlsx', '.xls']
+EXTENSOES_PERMITIDAS = ['.dxf', '.xlsx', '.xls'] #['.csv', '.xlsx', '.xls']
 TAMANHO_MAX_MB = 15
 
-def server_status(request):
-    return HttpResponse("Servidor está ativo")
+def server_status(request):    return HttpResponse("Servidor está ativo")
 
 # =====================================================================
 # INÍCIO DO BLOCO DXF 
@@ -52,12 +53,12 @@ class UploadArquivoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validar extensão do arquivo (Bloqueado apenas para DXF)
+        # Validar extensão do arquivo (Bloqueado apenas para arquivos permitidos acima, na linha 22)
         nome_arquivo = arquivo.name
         _, ext = os.path.splitext(nome_arquivo.lower())
         if ext not in EXTENSOES_PERMITIDAS:
             return Response(
-                {"error": f"Extensão '{ext}' não é permitida. Extensões permitidas: {', '.join(EXTENSOES_PERMITIDAS)}."}, 
+                {"error": f"Formato '{ext}' não é permitida. Extensões permitidas: {', '.join(EXTENSOES_PERMITIDAS)}"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -91,7 +92,10 @@ class UploadArquivoView(APIView):
             )
 
         # 2. Arquivo salvo. Acionando o Service de Extração EXCLUSIVO do DXF
-        extracao = extrair_dados_dxf(caminho_arquivo)
+        if ext == '.dxf':
+            extracao = extrair_dados_dxf(caminho_arquivo)
+        elif ext in ['.xls', '.xlsx']:
+            extracao = extrair_dados_excel(caminho_arquivo)
         
         if not extracao["sucesso"]:
             return Response(
@@ -270,4 +274,41 @@ class TesteUploadPlanilhaView(APIView):
             return Response({"erro": resultado.get("erro")}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 # =====================================================================
 # FIM DO BLOCO EXCEL
+# =====================================================================
+
+
+# =====================================================================
+# INÍCIO DO BLOCO IA (TESTE)
+# -> Endpoint de teste para validar a integração: DXF -> Extração -> LLM -> JSON
+# -> Não persiste itens no banco (por enquanto).
+# =====================================================================
+class InterpretarArquivoDxfView(APIView):
+    def post(self, request, projeto_id: int, arquivo_id: int):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
+
+        extracao = extrair_dados_dxf(arquivo.caminho_arquivo)
+        if not extracao.get("sucesso"):
+            return Response(
+                {"error": f"Erro ao ler o DXF: {extracao.get('erro', 'erro desconhecido')}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        saida = interpretar_itens_extraidos_dxf(
+            extracao["itens"],
+            tipo_projeto=list(getattr(projeto, "tipo_projeto", []) or []),
+        )
+
+        return Response(
+            {
+                "projeto_id": projeto.id,
+                "arquivo_id": arquivo.id,
+                "nome_arquivo": arquivo.nome_original,
+                "ai": saida.model_dump(mode="json"),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+# =====================================================================
+# FIM DO BLOCO IA (TESTE)
 # =====================================================================

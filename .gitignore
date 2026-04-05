@@ -5,6 +5,8 @@ env/
 
 # Arquivos de Cache do Python
 __pycache__/
+media
+
 *.py[cod]
 *$py.class
 
