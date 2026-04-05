@@ -1,3 +1,17 @@
-.venv/
+# Ambientes Virtuais
+venv/
+env/
 .env
+
+# Arquivos de Cache do Python
 __pycache__/
+media
+
+*.py[cod]
+*$py.class
+
+# Banco de Dados SQLite (se estiver usando localmente)
+db.sqlite3
+
+# Arquivos de Mídia/Uploads locais
+media/
