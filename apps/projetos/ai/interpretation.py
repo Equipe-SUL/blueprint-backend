@@ -10,8 +10,9 @@ from .retrieval import buscar_contexto_sinapi
 # CORREÇÃO 1: Ponto único para importar do mesmo diretório e classes atualizadas
 from .schemas import AvisoLLM, ItemProjetoLLM, ItensProjetoLLMSaida
 
-CHUNK_SIZE = 5
-CHUNK_CONCURRENCY = 1
+CHUNK_SIZE = 512
+CHUNK_CONCURRENCY = 5
+MAX_RAG_QUERY_CHARS = 6000
 
 def interpretar_itens_extraidos_dxf(
     itens_extraidos: Dict[str, Any], 
@@ -25,6 +26,40 @@ def interpretar_itens_extraidos_dxf(
     
     textos = itens_extraidos.get("textos_legenda", [])
     chunks = [textos[i : i + CHUNK_SIZE] for i in range(0, len(textos), CHUNK_SIZE)]
+
+    disciplina = tipo_projeto[0] if tipo_projeto else None
+    partes_busca: List[str] = []
+    tamanho_atual = 0
+    for item in textos:
+        t = (item.get("texto") or "").strip()
+        if not t:
+            continue
+        # +1 por causa do espaço entre partes
+        incremento = len(t) + (1 if partes_busca else 0)
+        if tamanho_atual + incremento > MAX_RAG_QUERY_CHARS:
+            restante = MAX_RAG_QUERY_CHARS - tamanho_atual
+            if restante > 1:
+                # garante ao menos 1 char de texto além do espaço
+                if partes_busca:
+                    restante -= 1
+                partes_busca.append(t[:restante])
+            break
+        partes_busca.append(t)
+        tamanho_atual += incremento
+
+    termo_busca_global = " ".join(partes_busca).strip()
+
+    try:
+        contexto_sinapi_global = buscar_contexto_sinapi(
+            termo_busca_global or "texto tecnico de projeto",
+            k=10,
+            disciplina=disciplina,
+        )
+    except Exception as e:
+        contexto_sinapi_global = (
+            "Atenção: Falha ao consultar a base SINAPI (RAG). "
+            f"Detalhes: {type(e).__name__}: {str(e)[:300]}"
+        )
     
     base_context = {
         "tipo_projeto": tipo_projeto or [],
@@ -83,16 +118,8 @@ def interpretar_itens_extraidos_dxf(
 
     async def _invocar_chunk(chunk: List[Dict[str, Any]], index: int) -> ItensProjetoLLMSaida:
         print(f"[interpretar] processando chunk {index+1}...")
-        
-        termo_busca = " ".join([i.get("texto", "") for i in chunk])
-        disciplina = tipo_projeto[0] if tipo_projeto else None
-        
-        contexto_sinapi = await asyncio.to_thread(
-            buscar_contexto_sinapi, 
-            termo_busca, 
-            k=5, 
-            disciplina=disciplina
-        )
+
+        contexto_sinapi = contexto_sinapi_global
 
         try:
             saida = await chain.ainvoke({
