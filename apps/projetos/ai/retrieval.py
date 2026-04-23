@@ -48,7 +48,7 @@ def buscar_contexto_sinapi(termo_busca: str, k: int = 5, disciplina: str = None)
         documentos_encontrados = []
         ultima_tentativa = ""
         for filtro, label in tentativas:
-            ultima_tentativa = label
+            ultima_tentativa = label 
             search_kwargs = {"k": k}
             if filtro is not None:
                 search_kwargs["filter"] = filtro
