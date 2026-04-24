@@ -1,0 +1,13 @@
+# Pasta para imagens de teste da VLM
+
+## Como usar
+
+1. Copie uma imagem de planta de alvenaria (JPG/PNG) para esta pasta
+2. Renomeie para `planta_alvenaria_teste.jpg`
+
+## Ou use variável de ambiente
+
+```bash
+# Aponte para qualquer imagem no seu media/ local
+VLM_TEST_IMAGE=media/uploads/18/sua_planta.jpg python manage.py test apps.projetos.tests.VLMTests
+```

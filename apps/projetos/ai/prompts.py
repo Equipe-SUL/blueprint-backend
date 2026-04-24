@@ -82,4 +82,4 @@ Se você visualizar símbolos confusos, tubulações, fiações ou elementos que
             "categoria": "RUIDO_OUTRAS_DISCIPLINAS"
         }}
     ]
-}}
+}}"""

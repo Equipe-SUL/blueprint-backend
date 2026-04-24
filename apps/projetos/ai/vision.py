@@ -1,8 +1,10 @@
 import base64
+import json
+import re
 from io import BytesIO
 from PIL import Image
 from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from .config import get_ai_config
 from .prompts import VLM_SYSTEM_PROMPT, VLM_USER_PROMPT_TEMPLATE, ALVENARIA_VISUAL_TARGETS
 
