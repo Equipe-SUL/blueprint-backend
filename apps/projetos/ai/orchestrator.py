@@ -33,25 +33,24 @@ def processar_projeto_completo(arquivo_id: int, json_dxf: Dict[str, Any]) -> Dic
 
         # 2. Passo 1: VLM (Visão)
         # Definimos alvos genéricos baseados na disciplina para a VLM procurar
-        alvos_padrao = ["tubulações", "caixas de passagem", "quadros", "fiação"] if disciplina_principal in ['eletrica', 'hidraulica'] else ["paredes", "vãos", "pilares"]
+       
         
-        print("[Orquestrador] 👁️ Chamando VLM para análise visual...")
-        resultado_vlm = analisar_imagem_com_vlm(
-            caminho_imagem=arquivo.caminho_arquivo, # Certifique-se que o caminho está correto
-            alvos=alvos_padrao,
-            disciplina=disciplina_principal
-        )
+        print("[Orquestrador] 👁️ Chamando VLM(alvenaria) para análise visual...")
+       resultado_vlm = analisar_imagem_com_vlm(caminho_imagem=arquivo.caminho_arquivo)
 
-        contexto_visual = "Nenhuma análise visual disponível."
-        if resultado_vlm.get("sucesso"):
-            contexto_visual = resultado_vlm.get("dados")
-            print(f"[Orquestrador]  Visão concluída com sucesso.")
+       if resultado_vlm.get("sucesso"):
+            import json
+            # Convertemos o dicionário de volta para string formatada para facilitar a leitura da LLM de Interpretação
+            contexto_visual = json.dumps(resultado_vlm.get("dados"), ensure_ascii=False, indent=2)
+            print(f"[Orquestrador] ✅ Visão concluída com sucesso. JSON validado.")
         else:
+            # CA.5: A integração trata erros sem interromper o fluxo
             print(f"[Orquestrador] ⚠️ Aviso: VLM falhou, seguindo apenas com dados do DXF. Erro: {resultado_vlm.get('erro')}")
+
 
         # 3. Passo 2: RAG + LLM (Interpretação)
         # Injetamos o relatório da visão dentro do dicionário do DXF
-        json_dxf["analise_visual"] = contexto_visual
+        json_dxf["analise_visual_vlm"] = contexto_visual
 
         print("[Orquestrador] 🧠 Chamando Interpretação (RAG + Qwen)...")
         resposta_ia = interpretar_itens_extraidos_dxf(
