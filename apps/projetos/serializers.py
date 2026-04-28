@@ -2,10 +2,6 @@ from rest_framework import serializers
 from .models import Projeto, ArquivoUpload , ItemProjeto , CatalogoItem
 
 class ProjetoSerializer(serializers.ModelSerializer):
-    tipo_projeto = serializers.ListField(
-        child=serializers.ChoiceField(choices=Projeto.TipoProjeto.choices),
-        allow_empty=False,
-    )
     class Meta:
         model = Projeto
         fields = '__all__'

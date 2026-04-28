@@ -10,9 +10,6 @@ from django.db import transaction
 from rest_framework.parsers import MultiPartParser
 from .services import extrair_dados_dxf, extrair_dados_excel
 
-from .ai.interpretation import interpretar_itens_extraidos_dxf
-
-
 from .models import Projeto, ArquivoUpload , ItemProjeto, CatalogoItem
 from .serializers import UploadArquivoSerializer, ProjetoSerializer , ItemProjetoSerializer 
 
@@ -274,41 +271,4 @@ class TesteUploadPlanilhaView(APIView):
             return Response({"erro": resultado.get("erro")}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 # =====================================================================
 # FIM DO BLOCO EXCEL
-# =====================================================================
-
-
-# =====================================================================
-# INÍCIO DO BLOCO IA (TESTE)
-# -> Endpoint de teste para validar a integração: DXF -> Extração -> LLM -> JSON
-# -> Não persiste itens no banco (por enquanto).
-# =====================================================================
-class InterpretarArquivoDxfView(APIView):
-    def post(self, request, projeto_id: int, arquivo_id: int):
-        projeto = get_object_or_404(Projeto, id=projeto_id)
-        arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
-
-        extracao = extrair_dados_dxf(arquivo.caminho_arquivo)
-        if not extracao.get("sucesso"):
-            return Response(
-                {"error": f"Erro ao ler o DXF: {extracao.get('erro', 'erro desconhecido')}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        saida = interpretar_itens_extraidos_dxf(
-            extracao["itens"],
-            tipo_projeto=list(getattr(projeto, "tipo_projeto", []) or []),
-        )
-
-        return Response(
-            {
-                "projeto_id": projeto.id,
-                "arquivo_id": arquivo.id,
-                "nome_arquivo": arquivo.nome_original,
-                "ai": saida.model_dump(mode="json"),
-            },
-            status=status.HTTP_200_OK,
-        )
-
-# =====================================================================
-# FIM DO BLOCO IA (TESTE)
 # =====================================================================
