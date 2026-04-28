@@ -57,6 +57,9 @@ class AIConfig:
     ollama_chat_model: str
     ollama_vl_model: str | None
     ollama_temperature: float
+    langsmith_api_key: str | None
+    langsmith_tracing: bool
+    chroma_persist_path: str | None
 
 # TODO: get_ai_config - decorada com lru_cache(garante que a configuração seja carregada uma vez e reutilizada em chamadas subsequentes - Otimiza a performance tbm)
 @lru_cache(maxsize=1)
@@ -66,4 +69,8 @@ def get_ai_config() -> AIConfig:
         ollama_chat_model=_env_str("OLLAMA_CHAT_MODEL", "qwen2.5:7b"),
         ollama_vl_model=_env_str("OLLAMA_VL_MODEL", None),
         ollama_temperature=_env_float("OLLAMA_TEMPERATURE", 0.0)
+        ,
+        langsmith_api_key=_env_str("LANGSMITH_API_KEY", None),
+        langsmith_tracing=_env_bool("LANGSMITH_TRACING", False),
+        chroma_persist_path=_env_str("CHROMA_PERSIST_PATH", None)
     )
