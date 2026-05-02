@@ -4,10 +4,8 @@ from django.conf import settings
 from django.conf.urls.static import static 
 from rest_framework import routers
 
-
 router = routers.DefaultRouter()
 router.register(r'projetos', ProjetosViewSet)
-
 
 urlpatterns = [
     path('', include(router.urls)),

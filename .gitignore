@@ -15,3 +15,5 @@ db.sqlite3
 
 # Arquivos de Mídia/Uploads locais
 media/
+
+_raw_data/

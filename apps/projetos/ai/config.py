@@ -6,10 +6,6 @@ from functools import lru_cache
 from dotenv import load_dotenv
 load_dotenv()
 
-# Configuração de IA para a app projetos, utilizando variáveis de ambiente com valores default e validação.
-# Necessario para converter o .env em tipos corretos e centraliza-las facilitando o acesso a essas configs.
-
-# Retorna o valor da variável de ambiente ou o valor default se a variável não estiver definida ou for vazia.
 def _env_str(name: str, default: str | None = None) -> str | None:
     value = os.getenv(name, default)
     if value is None:
@@ -17,7 +13,6 @@ def _env_str(name: str, default: str | None = None) -> str | None:
     value = value.strip()
     return value if value else default
 
-# Retorna o valor da variável de ambiente como inteiro ou o valor default se a variável não estiver definida.
 def _env_int(name: str, default: int) -> int:
     value = _env_str(name)
     if value is None:
@@ -26,8 +21,7 @@ def _env_int(name: str, default: int) -> int:
         return int(value)
     except ValueError:
         return default
-
-# Retorna o valor da variável de ambiente como float ou o valor default se a variável não estiver definida.    
+  
 def _env_float(name: str, default: float) -> float:
     value = _env_str(name)
     if value is None:
@@ -37,7 +31,6 @@ def _env_float(name: str, default: float) -> float:
     except ValueError:
         return default
 
-# Retorna o valor da variável de ambiente como booleano ou o valor default se a variável não estiver definida.
 def _env_bool(name: str, default: bool) -> bool:
     value = _env_str(name)
     if value is None:
@@ -50,7 +43,6 @@ def _env_bool(name: str, default: bool) -> bool:
     else:
         return default
 
-# Interface de configuração, utilizando dataclass para imutabilidade e tipagem.
 @dataclass(frozen=True)
 class AIConfig:
     ollama_base_url: str
@@ -60,17 +52,17 @@ class AIConfig:
     langsmith_api_key: str | None
     langsmith_tracing: bool
     chroma_persist_path: str | None
+    embedding_model: str
 
-# TODO: get_ai_config - decorada com lru_cache(garante que a configuração seja carregada uma vez e reutilizada em chamadas subsequentes - Otimiza a performance tbm)
 @lru_cache(maxsize=1)
 def get_ai_config() -> AIConfig:
     return AIConfig(
         ollama_base_url=_env_str("OLLAMA_BASE_URL", "http://localhost:11434"),
-        ollama_chat_model=_env_str("OLLAMA_CHAT_MODEL", "qwen2.5:7b"),
+        ollama_chat_model=_env_str("OLLAMA_CHAT_MODEL", "gemma4"),
         ollama_vl_model=_env_str("OLLAMA_VL_MODEL", None),
-        ollama_temperature=_env_float("OLLAMA_TEMPERATURE", 0.0)
-        ,
+        ollama_temperature=_env_float("OLLAMA_TEMPERATURE", 0.0),
         langsmith_api_key=_env_str("LANGSMITH_API_KEY", None),
         langsmith_tracing=_env_bool("LANGSMITH_TRACING", False),
-        chroma_persist_path=_env_str("CHROMA_PERSIST_PATH", None)
+        chroma_persist_path=_env_str("CHROMA_PERSIST_PATH", None),
+        embedding_model=_env_str("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
     )
