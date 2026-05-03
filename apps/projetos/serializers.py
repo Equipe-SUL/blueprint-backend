@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Projeto, ArquivoUpload , ItemProjeto , CatalogoItem
+from .models import Projeto, ArquivoUpload, ItemProjeto, CatalogoItem, Memorial
 
 class ProjetoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,15 +13,27 @@ class UploadArquivoSerializer(serializers.ModelSerializer):
             "id",
             "projeto",
             "nome_original",
-            "caminho_arquivo",
             "status_processamento",
             "tamanho_mb",
             "enviado_em",
         ]
         read_only_fields = fields
+
+
+class MemorialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Memorial
+        fields = [
+            "id",
+            "projeto",
+            "arquivo",
+            "memorial_calculo",
+            "orcamento_final",
+            "criado_em",
+        ]
+        read_only_fields = fields
     
-    
-    
+
 class ItemProjetoSerializer(serializers.ModelSerializer):
     descricao_original = serializers.CharField(source='descricao')
     
@@ -46,9 +58,4 @@ class ItemProjetoSerializer(serializers.ModelSerializer):
             'arquivo': {'required': False, 'allow_null': True},
             'preco_unitario': {'required': False , 'default' : '0.00'}
         }
-        
-        
-        
-
-
 

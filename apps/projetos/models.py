@@ -29,7 +29,6 @@ class ArquivoUpload(models.Model):
     )
 
     nome_original   = models.CharField(max_length=255)
-    caminho_arquivo  = models.TextField()
     status_processamento = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -40,8 +39,33 @@ class ArquivoUpload(models.Model):
 
     def __str__(self):
         return f"{self.nome_original} [{self.status_processamento}]"
-    
-    
+
+
+class Memorial(models.Model):
+    """Tabela separada para armazenar os memoriais gerados pelo pipeline."""
+
+    projeto = models.ForeignKey(
+        Projeto,
+        on_delete=models.CASCADE,
+        related_name="memoriais",
+    )
+    arquivo = models.ForeignKey(
+        ArquivoUpload,
+        on_delete=models.CASCADE,
+        related_name="memoriais",
+        null=True,
+        blank=True,
+    )
+
+    memorial_calculo   = models.JSONField(null=True, blank=True)
+    orcamento_final    = models.JSONField(null=True, blank=True)
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Memorial - {self.projeto.nome_obra} ({self.criado_em:%d/%m/%Y})"
+
+
 class CatalogoItem(models.Model):
     descricao = models.CharField(max_length=255, unique=True)
     unidade = models.CharField(max_length=20)
@@ -80,8 +104,4 @@ class ItemProjeto(models.Model):
     status_mapeamento = models.CharField(max_length=20, default='pendente')
 
     def __str__(self):
-        return f"{self.descricao[:30]}... ({self.projeto.nome_obra})"   
-    
-
-        
-    
+        return f"{self.descricao[:30]}... ({self.projeto.nome_obra})"   

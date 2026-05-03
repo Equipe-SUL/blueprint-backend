@@ -35,6 +35,16 @@ def carregar_e_vetorizar_sinapi(nome_arquivo: str = "SINAPI_mao_de_obra_2025_12.
     
     documentos = []
     
+    # Detecta a coluna de preço do estado configurado
+    estado = os.environ.get('SINAPI_ESTADO', 'SP')
+    colunas = list(df.columns)
+    if estado in colunas:
+        idx_preco = colunas.index(estado)
+        print(f"[SISTEMA] Usando preços do estado: {estado} (coluna {idx_preco})")
+    else:
+        idx_preco = None
+        print(f"[AVISO] Estado '{estado}' não encontrado. Preços não serão incluídos.")
+    
     print("[SISTEMA] Processando linhas da planilha (buscando Códigos Reais)...")
     for index, row in df.iterrows():
         try:
@@ -48,6 +58,16 @@ def carregar_e_vetorizar_sinapi(nome_arquivo: str = "SINAPI_mao_de_obra_2025_12.
         # O FILTRO DEFINITIVO: Se o código for "0" ou vazio, o robô ignora!
         if not descricao or descricao.lower() == "nan" or descricao == "0" or not codigo or codigo == "0":
             continue
+        
+        # Lê o preço unitário do estado
+        preco_unitario = 0.0
+        if idx_preco is not None:
+            try:
+                valor = row.iloc[idx_preco]
+                if valor and str(valor).strip() not in ("", "nan", "-"):
+                    preco_unitario = float(valor)
+            except (ValueError, TypeError):
+                preco_unitario = 0.0
             
         texto_para_vetor = f"Grupo: {grupo} | Código: {codigo} | Descrição: {descricao} (Unidade: {unidade})"
         
@@ -55,6 +75,8 @@ def carregar_e_vetorizar_sinapi(nome_arquivo: str = "SINAPI_mao_de_obra_2025_12.
             "codigo": codigo,
             "grupo": grupo,
             "unidade": unidade,
+            "preco_unitario": preco_unitario,
+            "estado": estado,
             "origem": "sinapi_mao_de_obra"
         }
         
