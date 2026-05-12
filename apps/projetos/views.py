@@ -87,6 +87,14 @@ class UploadArquivoView(APIView):
                     registro.status_processamento = ArquivoUpload.Status.PROCESSADO
                     registro.save()
                     resposta["status_processamento"] = "processado"
+                elif resultado_pipeline.get("pausado"):
+                    # Pipeline pausado — aguardando decisão humana (HITL)
+                    registro.status_processamento = ArquivoUpload.Status.PENDENTE
+                    registro.save()
+                    resposta["status_processamento"] = "aguardando_revisao"
+                    resposta["thread_id"] = resultado_pipeline.get("thread_id")
+                    resposta["interrupt_info"] = resultado_pipeline.get("interrupt_info")
+                    resposta["alertas"] = resultado_pipeline.get("alertas", [])
                 else:
                     registro.status_processamento = ArquivoUpload.Status.ERRO
                     registro.save()
@@ -111,6 +119,85 @@ class UploadArquivoView(APIView):
 class ItemProjetoView(APIView):
     def get(self, request, projeto_id):
         return Response({"itens": []})
+
+
+class RetomarPipelineView(APIView):
+    """
+    Endpoint para retomar um pipeline pausado por human-in-the-loop.
+
+    POST /api/projetos/<projeto_id>/retomar/
+    Body JSON: {"thread_id": "...", "decisao": "continuar" | "cancelar"}
+    """
+
+    def post(self, request, projeto_id):
+        # 1. Verificar se o projeto existe
+        try:
+            projeto = Projeto.objects.get(pk=projeto_id)
+        except Projeto.DoesNotExist:
+            return Response(
+                {"erro": f"Projeto {projeto_id} não encontrado."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # 2. Extrair parâmetros
+        thread_id = request.data.get("thread_id")
+        decisao = request.data.get("decisao", "continuar")
+
+        if not thread_id:
+            return Response(
+                {"erro": "Campo 'thread_id' é obrigatório."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if decisao not in ("continuar", "cancelar"):
+            return Response(
+                {"erro": "Campo 'decisao' deve ser 'continuar' ou 'cancelar'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 3. Retomar o pipeline
+        try:
+            from apps.projetos.ai.services.pipeline_service import retomar_pipeline
+
+            resultado = retomar_pipeline(thread_id, decisao)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {"erro": f"Erro ao retomar pipeline: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # 4. Processar resultado
+        resposta = {"projeto_id": projeto_id, "decisao": decisao}
+
+        if resultado.get("sucesso"):
+            # Busca o último arquivo pendente do projeto para criar o memorial
+            arquivo_pendente = ArquivoUpload.objects.filter(
+                projeto=projeto,
+                status_processamento=ArquivoUpload.Status.PENDENTE,
+            ).order_by("-enviado_em").first()
+
+            memorial = Memorial.objects.create(
+                projeto=projeto,
+                arquivo=arquivo_pendente,
+                memorial_calculo=resultado.get("memorial_calculo"),
+                orcamento_final=resultado.get("orcamento_final"),
+            )
+
+            if arquivo_pendente:
+                arquivo_pendente.status_processamento = ArquivoUpload.Status.PROCESSADO
+                arquivo_pendente.save()
+
+            resposta["sucesso"] = True
+            resposta["memorial"] = MemorialSerializer(memorial).data
+        else:
+            resposta["sucesso"] = False
+            resposta["erro"] = resultado.get("erro", "Pipeline não concluído.")
+            resposta["alertas"] = resultado.get("alertas", [])
+
+        return Response(resposta, status=status.HTTP_200_OK)
+
 
 class TesteUploadPlanilhaView(APIView):
     def post(self, request, projeto_id):
