@@ -4,6 +4,7 @@ anyio==4.13.0
 asgiref==3.11.1
 attrs==26.1.0
 bcrypt==5.0.0
+Binary file /C/Users/User/Desktop/AJUSTE/parser/requirements.txt matches
 build==1.4.2
 certifi==2026.2.25
 charset-normalizer==3.4.6
@@ -68,9 +69,9 @@ protobuf==6.33.6
 psycopg2==2.9.11
 psycopg2-binary==2.9.11
 pybase64==1.4.3
+pydantic_core==2.41.5
 pydantic==2.12.5
 pydantic-settings==2.13.1
-pydantic_core==2.41.5
 Pygments==2.20.0
 pyparsing==3.3.2
 PyPika==0.51.1
@@ -101,8 +102,8 @@ torch==2.11.0
 tqdm==4.67.3
 transformers==5.4.0
 typer==0.24.1
-typing-inspection==0.4.2
 typing_extensions==4.15.0
+typing-inspection==0.4.2
 tzdata==2025.3
 urllib3==2.6.3
 uuid_utils==0.14.1
