@@ -1,0 +1,8 @@
+﻿Camada;Categoria;Quantidade;Área Total (m²);Perímetro Total (m);Comprimento Total (m);Volume (m³);Área Líquida (m²)
+DETALHE_ESTACAS;estaca;1;0.4616;2.4086;0.0000;0.1385;0.0000
+DIVERSOS;outro;391;0.0000;0.0000;12.1164;0.0000;0.0000
+ESTACA;estaca;110;4.6904;70.1364;0.0000;1.4071;0.0000
+PILAR;pilar;89;9.7434;50.2296;59.8155;1.9487;0.0000
+VIGAS;viga;291;0.0000;0.0000;312.1267;0.0000;0.0000
+
+TOTAL;;882;14.8954;122.7746;384.0586;3.4943;

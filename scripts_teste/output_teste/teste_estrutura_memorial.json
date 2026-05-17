@@ -1,0 +1,219 @@
+{
+  "arquivo_origem": "teste_estrutura.dxf",
+  "total_entidades": 13,
+  "total_ignoradas": 1,
+  "ambientes": [
+    {
+      "nome": "Sala",
+      "area_m2": 12.5,
+      "perimetro_m": 15.0,
+      "pe_direito_m": 2.8
+    },
+    {
+      "nome": "Quarto",
+      "area_m2": 9.8,
+      "perimetro_m": 12.6,
+      "pe_direito_m": 2.8
+    }
+  ],
+  "textos_legenda": [
+    {
+      "texto": "10.00",
+      "layer": "COTAS"
+    }
+  ],
+  "resumo_por_camada": {
+    "PILAR": {
+      "camada": "PILAR",
+      "categoria": "pilar",
+      "quantidade": 4,
+      "area_total_m2": 0.3207,
+      "perimetro_total_m": 4.5425,
+      "comprimento_total_m": 3.6,
+      "volume_m3": 0.0641,
+      "area_liquida_m2": 0.0
+    },
+    "VIGA": {
+      "camada": "VIGA",
+      "categoria": "viga",
+      "quantidade": 2,
+      "area_total_m2": 0.0,
+      "perimetro_total_m": 0.0,
+      "comprimento_total_m": 10.0,
+      "volume_m3": 0.0,
+      "area_liquida_m2": 0.0
+    },
+    "LAJE": {
+      "camada": "LAJE",
+      "categoria": "laje",
+      "quantidade": 1,
+      "area_total_m2": 80.0,
+      "perimetro_total_m": 36.0,
+      "comprimento_total_m": 36.0,
+      "volume_m3": 9.6,
+      "area_liquida_m2": 0.0
+    },
+    "PAREDE": {
+      "camada": "PAREDE",
+      "categoria": "parede",
+      "quantidade": 4,
+      "area_total_m2": 108.0,
+      "perimetro_total_m": 0.0,
+      "comprimento_total_m": 36.0,
+      "volume_m3": 15.192,
+      "area_liquida_m2": 101.28
+    },
+    "ESQUADRIAS": {
+      "camada": "ESQUADRIAS",
+      "categoria": "vao",
+      "quantidade": 2,
+      "area_total_m2": 0.0,
+      "perimetro_total_m": 0.0,
+      "comprimento_total_m": 3.2,
+      "volume_m3": 0.0,
+      "area_liquida_m2": 0.0
+    }
+  },
+  "resumo_geral": {
+    "total_entidades": 13,
+    "total_ignoradas": 1,
+    "area_total_m2": 188.3207,
+    "perimetro_total_m": 40.5425,
+    "comprimento_total_m": 88.8,
+    "volume_total_m3": 24.8561,
+    "total_ambientes": 2,
+    "total_camadas": 5
+  },
+  "entidades": [
+    {
+      "indice": 1,
+      "tipo_entidade": "LWPOLYLINE",
+      "camada": "PILAR",
+      "categoria": "pilar",
+      "fechada": true,
+      "comprimento_m": 1.2,
+      "area_m2": 0.08,
+      "perimetro_m": 1.2
+    },
+    {
+      "indice": 2,
+      "tipo_entidade": "LWPOLYLINE",
+      "camada": "PILAR",
+      "categoria": "pilar",
+      "fechada": true,
+      "comprimento_m": 1.2,
+      "area_m2": 0.08,
+      "perimetro_m": 1.2
+    },
+    {
+      "indice": 3,
+      "tipo_entidade": "LWPOLYLINE",
+      "camada": "PILAR",
+      "categoria": "pilar",
+      "fechada": true,
+      "comprimento_m": 1.2,
+      "area_m2": 0.09,
+      "perimetro_m": 1.2
+    },
+    {
+      "indice": 4,
+      "tipo_entidade": "LINE",
+      "camada": "VIGA",
+      "categoria": "viga",
+      "fechada": false,
+      "comprimento_m": 5.0,
+      "area_m2": 0.0,
+      "perimetro_m": 0.0
+    },
+    {
+      "indice": 5,
+      "tipo_entidade": "LINE",
+      "camada": "VIGA",
+      "categoria": "viga",
+      "fechada": false,
+      "comprimento_m": 5.0,
+      "area_m2": 0.0,
+      "perimetro_m": 0.0
+    },
+    {
+      "indice": 6,
+      "tipo_entidade": "LWPOLYLINE",
+      "camada": "LAJE",
+      "categoria": "laje",
+      "fechada": true,
+      "comprimento_m": 36.0,
+      "area_m2": 80.0,
+      "perimetro_m": 36.0
+    },
+    {
+      "indice": 7,
+      "tipo_entidade": "LINE",
+      "camada": "PAREDE",
+      "categoria": "parede",
+      "fechada": false,
+      "comprimento_m": 10.0,
+      "area_m2": 0.0,
+      "perimetro_m": 0.0
+    },
+    {
+      "indice": 8,
+      "tipo_entidade": "LINE",
+      "camada": "PAREDE",
+      "categoria": "parede",
+      "fechada": false,
+      "comprimento_m": 8.0,
+      "area_m2": 0.0,
+      "perimetro_m": 0.0
+    },
+    {
+      "indice": 9,
+      "tipo_entidade": "LINE",
+      "camada": "PAREDE",
+      "categoria": "parede",
+      "fechada": false,
+      "comprimento_m": 10.0,
+      "area_m2": 0.0,
+      "perimetro_m": 0.0
+    },
+    {
+      "indice": 10,
+      "tipo_entidade": "LINE",
+      "camada": "PAREDE",
+      "categoria": "parede",
+      "fechada": false,
+      "comprimento_m": 8.0,
+      "area_m2": 0.0,
+      "perimetro_m": 0.0
+    },
+    {
+      "indice": 11,
+      "tipo_entidade": "LINE",
+      "camada": "ESQUADRIAS",
+      "categoria": "vao",
+      "fechada": false,
+      "comprimento_m": 1.2,
+      "area_m2": 0.0,
+      "perimetro_m": 0.0
+    },
+    {
+      "indice": 12,
+      "tipo_entidade": "LINE",
+      "camada": "ESQUADRIAS",
+      "categoria": "vao",
+      "fechada": false,
+      "comprimento_m": 2.0,
+      "area_m2": 0.0,
+      "perimetro_m": 0.0
+    },
+    {
+      "indice": 13,
+      "tipo_entidade": "CIRCLE",
+      "camada": "PILAR",
+      "categoria": "pilar",
+      "fechada": true,
+      "comprimento_m": 0.0,
+      "area_m2": 0.0707,
+      "perimetro_m": 0.9425
+    }
+  ]
+}

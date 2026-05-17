@@ -4,10 +4,13 @@ import django
 import pandas as pd
 
 # Configuração do Django para poderes usar os módulos (ajusta o nome 'setup' se necessário)
+caminho_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, caminho_raiz)
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 django.setup()
 
-from apps.projetos.ai.rag.embeddings import ingerir_documentos_sinapi, get_vector_store
+from apps.projetos.ai.rag.vectorstore import get_vector_store
 
 def teste_ingestao_excel(caminho_excel: str):
     """Lê as primeiras 50 linhas do Excel da SINAPI e insere no ChromaDB."""
@@ -51,11 +54,12 @@ def teste_busca_semantica(termo_busca: str):
         
 if __name__ == "__main__":
     # 1. Pega no caminho do ficheiro que partilhaste
-    caminho_tabela_sinapi = "_raw_data/SINAPI_Refer ncia_2025_12.xlsx"
+    caminho_tabela_sinapi = "_raw_data/SINAPI_Referência_2025_12.xlsx"
     
     # 2. Faz a ingestão (podes comentar esta linha depois de rodares a primeira vez)
-    teste_ingestao_excel(caminho_tabela_sinapi)
+    # teste_ingestao_excel(caminho_tabela_sinapi)
     
     # 3. Testa a tua busca com termos como se fossem os gerados pelo CAD
+    teste_busca_semantica("pilar concreto armado")
     teste_busca_semantica("bloco concreto estrutural")
     teste_busca_semantica("tubo PVC 40mm esgoto")

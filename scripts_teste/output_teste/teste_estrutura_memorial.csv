@@ -1,0 +1,13 @@
+﻿Camada;Categoria;Quantidade;Área Total (m²);Perímetro Total (m);Comprimento Total (m);Volume (m³);Área Líquida (m²)
+ESQUADRIAS;vao;2;0.0000;0.0000;3.2000;0.0000;0.0000
+LAJE;laje;1;80.0000;36.0000;36.0000;9.6000;0.0000
+PAREDE;parede;4;108.0000;0.0000;36.0000;15.1920;101.2800
+PILAR;pilar;4;0.3207;4.5425;3.6000;0.0641;0.0000
+VIGA;viga;2;0.0000;0.0000;10.0000;0.0000;0.0000
+
+TOTAL;;13;188.3207;40.5425;88.8000;24.8561;
+
+AMBIENTES (extraídos de textos MTEXT)
+Nome;Área (m²);Perímetro (m);Pé-direito (m)
+Sala;12.50;15.00;2.80
+Quarto;9.80;12.60;2.80

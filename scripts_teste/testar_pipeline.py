@@ -19,11 +19,11 @@ sys.path.insert(0, caminho_raiz)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'setup.settings')
 django.setup()
 
-from apps.projetos.ai.services.pipeline_service import processar_dxf_completo, retomar_pipeline
+from apps.projetos.ai.services.pipeline_service import processar_dxf_completo
 
-# Usa o Estrutura.dxf direto do Desktop (ou troque pelo caminho do arquivo)
-CAMINHO_DXF = os.path.join(os.path.expanduser('~'), 'Desktop', 'ExtraçãoCalculo', 'Estrutura.dxf')
-PROJETO_ID = None  # Sem projeto no banco — BDI = 0%
+# Usa o Estrutura.dxf direto do Desktop (ou troque pelo caminho do arquivo já salvo)
+CAMINHO_DXF = os.path.join(caminho_raiz, 'teste_estrutura.dxf')
+PROJETO_ID = 21
 
 
 def imprimir_resultado(resultado):
@@ -32,6 +32,11 @@ def imprimir_resultado(resultado):
 
     if resultado.get("sucesso"):
         print("✅ PIPELINE COMPLETO COM SUCESSO!")
+        print(f"   Itens adaptados: {len(resultado.get('itens_adaptados', []))}")
+        print(f"   Sugestões SINAPI: {len(resultado.get('sugestoes_rag', []))}")
+        print(f"\n   Memoriais salvos em:")
+        for nome, caminho in resultado.get("caminhos", {}).items():
+            print(f"     → {nome}: {caminho}")
 
         # Memorial de cálculo
         memorial = resultado.get("memorial_calculo", {})
@@ -76,25 +81,12 @@ def imprimir_resultado(resultado):
             for a in alertas:
                 print(f"   • {a}")
 
-    elif resultado.get("pausado"):
-        print("⏸️  PIPELINE PAUSADO — HUMAN-IN-THE-LOOP")
-        print(f"\n   Thread ID: {resultado.get('thread_id')}")
-        print(f"   Etapa: {resultado.get('etapa_atual')}")
-
-        interrupt_info = resultado.get("interrupt_info", {})
-        if interrupt_info:
-            print(f"\n   📋 Info do interrupt:")
-            print(f"   Pergunta: {interrupt_info.get('pergunta', 'N/A')}")
-            print(f"   Alertas críticos: {interrupt_info.get('alertas_criticos', [])}")
-
-        alertas = resultado.get("alertas", [])
-        if alertas:
-            print(f"\n   ⚠️  Alertas ({len(alertas)}):")
-            for a in alertas:
-                print(f"      • {a}")
-
-        return resultado.get("thread_id")
-
+        print("\n   SUGESTÕES SINAPI (saída do RAG):")
+        for sug in resultado.get("sugestoes_rag", []):
+            print(f"\n     Item: {sug['id_cad']} ({sug['item_original']})")
+            print(f"     Quantidade: {sug['quantidade']}")
+            for i, op in enumerate(sug.get('opcoes_sinapi', []), 1):
+                print(f"       {i}. [Cód: {op['codigo']}] {op['descricao'][:80]}...")
     else:
         print(f"❌ PIPELINE FALHOU: {resultado.get('erro')}")
         alertas = resultado.get("alertas", [])
@@ -118,15 +110,4 @@ if __name__ == "__main__":
 
     # ── Executa o pipeline ──────────────────────────────────────────
     resultado = processar_dxf_completo(CAMINHO_DXF, PROJETO_ID)
-    thread_id = imprimir_resultado(resultado)
-
-    # ── Se pausou (HITL), pergunta ao usuário ──────────────────────
-    if thread_id:
-        print("\n" + "-" * 80)
-        decisao = input("👤 Deseja continuar? (continuar/cancelar): ").strip().lower()
-
-        if decisao not in ("continuar", "cancelar"):
-            decisao = "cancelar"
-
-        resultado_retomado = retomar_pipeline(thread_id, decisao)
-        imprimir_resultado(resultado_retomado)
+    imprimir_resultado(resultado)
