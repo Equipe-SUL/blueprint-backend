@@ -51,9 +51,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     'apps.projetos', # Gerenciamento de Projetos
+    'apps.users', # Gerenciamento de Usuários
 ]
+
+# O projeto usa um usuario customizado para permitir campos extras.
+AUTH_USER_MODEL = 'users.Usuario'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
