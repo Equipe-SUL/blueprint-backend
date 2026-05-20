@@ -56,7 +56,12 @@ class UploadArquivoView(APIView):
         # 6. Se for DXF, processar via pipeline usando arquivo temporário
         if arquivo.name.lower().endswith('.dxf'):
             try:
-                from apps.projetos.ai.services.pipeline_service import processar_dxf_completo
+                from apps.projetos.ai.services.descritivo_service import processar_memorial_descritivo
+
+                dados_adicionais = {
+                    "tipo_construcao": request.data.get("tipo_construcao", ""),
+                    "padrao_acabamento": request.data.get("padrao_acabamento", ""),
+                }
 
                 # Salva em arquivo temporário para processamento
                 sufixo = os.path.splitext(arquivo.name)[1]
@@ -67,34 +72,27 @@ class UploadArquivoView(APIView):
                 caminho_temp = tmp.name
 
                 try:
-                    resultado_pipeline = processar_dxf_completo(caminho_temp, projeto_id)
+                    resultado_pipeline = processar_memorial_descritivo(
+                        caminho_dxf=caminho_temp, 
+                        projeto_id=projeto_id, 
+                        metadados_obra=dados_adicionais
+                    )
                 finally:
                     # Remove o arquivo temporário após processamento
                     os.unlink(caminho_temp)
-                    # Remove também o .geojson gerado (mesmo nome, extensão diferente)
-                    geojson_temp = caminho_temp.rsplit('.', 1)[0] + '.geojson'
-                    if os.path.exists(geojson_temp):
-                        os.unlink(geojson_temp)
 
                 if resultado_pipeline.get("sucesso"):
-                    # Cria o memorial na tabela separada
-                    memorial = Memorial.objects.create(
-                        projeto=projeto,
-                        arquivo=registro,
-                        memorial_calculo=resultado_pipeline.get("memorial_calculo"),
-                        orcamento_final=resultado_pipeline.get("orcamento_final"),
-                    )
+                    memorial_id = resultado_pipeline.get("memorial_db_id")
+                    if memorial_id:
+                        Memorial.objects.filter(id=memorial_id).update(arquivo=registro)
+
                     registro.status_processamento = ArquivoUpload.Status.PROCESSADO
                     registro.save()
                     resposta["status_processamento"] = "processado"
-                elif resultado_pipeline.get("pausado"):
-                    # Pipeline pausado — aguardando decisão humana (HITL)
-                    registro.status_processamento = ArquivoUpload.Status.PENDENTE
-                    registro.save()
-                    resposta["status_processamento"] = "aguardando_revisao"
-                    resposta["thread_id"] = resultado_pipeline.get("thread_id")
-                    resposta["interrupt_info"] = resultado_pipeline.get("interrupt_info")
-                    resposta["alertas"] = resultado_pipeline.get("alertas", [])
+                    resposta["memorial_db_id"] = memorial_id
+                    resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
+                    resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias")
+                    resposta["confianca"] = resultado_pipeline.get("confianca")
                 else:
                     registro.status_processamento = ArquivoUpload.Status.ERRO
                     registro.save()
