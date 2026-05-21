@@ -57,6 +57,7 @@ class Memorial(models.Model):
         blank=True,
     )
 
+    memorial_descritivo = models.JSONField(null=True, blank=True)
     memorial_calculo   = models.JSONField(null=True, blank=True)
     orcamento_final    = models.JSONField(null=True, blank=True)
 
