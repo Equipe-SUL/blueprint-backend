@@ -114,6 +114,23 @@ class UploadArquivoView(APIView):
 
         return Response(resposta, status=status.HTTP_201_CREATED)
 
+    def delete(self, request, projeto_id, arquivo_id):
+            """remove um arquivo associado a um projeto. agora vai porra"""
+            # Validação: só remove se pertence ao projeto informado
+            projeto = get_object_or_404(Projeto, id=projeto_id)
+            arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
+
+            # Remove arquivo físico (se existir)
+            if arquivo.caminho_arquivo and os.path.exists(arquivo.caminho_arquivo):
+                os.remove(arquivo.caminho_arquivo)
+
+            # Remove registro do banco (remove vínculo do projeto automaticamente)
+            arquivo.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+
 class ItemProjetoView(APIView):
     def get(self, request, projeto_id):
         return Response({"itens": []})
