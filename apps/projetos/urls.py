@@ -13,6 +13,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('server/', server_status, name='server_status'),
     path('projetos/<int:projeto_id>/upload/', UploadArquivoView.as_view(), name='upload_arquivo'),
+    path('projetos/<int:projeto_id>/upload/<int:arquivo_id>/', UploadArquivoView.as_view(), name='delete_arquivo_upload'),
     path('projetos/<int:projeto_id>/itens/', ItemProjetoView.as_view(), name='itens_projeto'),
     
     
