@@ -3,6 +3,8 @@ import tempfile
 from decimal import Decimal
 
 from django.shortcuts import get_object_or_404
+from django.core.files.storage import default_storage
+
 from rest_framework import viewsets, status, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -46,9 +48,19 @@ class UploadArquivoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 3. Calcular tamanho em MB
+        # 3. Calcular tamanho em MB e Salvar o arquivo em media/projetos/<id>/<nome>
         tamanho_mb = Decimal(arquivo.size) / Decimal(1024 * 1024)
         tamanho_mb = round(tamanho_mb, 2)
+
+        caminho_relativo = os.path.join("projetos", str(projeto_id), arquivo.name)
+        if default_storage.exists(caminho_relativo):
+            return Response(
+                {"erro": f"Arquivo '{arquivo.name}' já existe para este projeto."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        caminho_salvo = default_storage.save(caminho_relativo, arquivo)
+
+        # TODO: voltar Model para guardar caminho do arquivo fisico por textfield (ou dar uma olhada em FileField, ver o que da menos trabalho)
 
         # 4. Criar registro no banco (Supabase)
         registro = ArquivoUpload.objects.create(
@@ -57,9 +69,11 @@ class UploadArquivoView(APIView):
             tamanho_mb=tamanho_mb,
             status_processamento=ArquivoUpload.Status.PENDENTE,
         )
+        
+        # TODO: implementar uma limpeza de arquivos órfãos (ex: quando um upload é criado mas o registro no banco falha)
 
-        # # 5. Inicializar a resposta base
-        # resposta = UploadArquivoSerializer(registro).data
+        # 5. Inicializar a resposta base
+        resposta = UploadArquivoSerializer(registro).data
 
         # # 6. Se for DXF, processar via pipeline usando arquivo temporário
         # if arquivo.name.lower().endswith('.dxf'):
