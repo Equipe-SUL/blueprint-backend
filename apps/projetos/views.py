@@ -21,6 +21,13 @@ class ProjetosViewSet(viewsets.ModelViewSet):
 class UploadArquivoView(APIView):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
+    def get(self, request, projeto_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivos = projeto.arquivos.order_by("-enviado_em")
+        serializer = UploadArquivoSerializer(arquivos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
     def post(self, request, projeto_id):
         # 1. Verificar se o projeto existe
         try:
