@@ -58,67 +58,67 @@ class UploadArquivoView(APIView):
             status_processamento=ArquivoUpload.Status.PENDENTE,
         )
 
-        # 5. Inicializar a resposta base
-        resposta = UploadArquivoSerializer(registro).data
+        # # 5. Inicializar a resposta base
+        # resposta = UploadArquivoSerializer(registro).data
 
-        # 6. Se for DXF, processar via pipeline usando arquivo temporário
-        if arquivo.name.lower().endswith('.dxf'):
-            try:
-                from apps.projetos.ai.services.descritivo_service import processar_memorial_descritivo
+        # # 6. Se for DXF, processar via pipeline usando arquivo temporário
+        # if arquivo.name.lower().endswith('.dxf'):
+        #     try:
+        #         from apps.projetos.ai.services.descritivo_service import processar_memorial_descritivo
 
-                dados_adicionais = {
-                    "tipo_construcao": request.data.get("tipo_construcao", ""),
-                    "padrao_acabamento": request.data.get("padrao_acabamento", ""),
-                }
+        #         dados_adicionais = {
+        #             "tipo_construcao": request.data.get("tipo_construcao", ""),
+        #             "padrao_acabamento": request.data.get("padrao_acabamento", ""),
+        #         }
 
-                # Salva em arquivo temporário para processamento
-                sufixo = os.path.splitext(arquivo.name)[1]
-                tmp = tempfile.NamedTemporaryFile(suffix=sufixo, delete=False)
-                for chunk in arquivo.chunks():
-                    tmp.write(chunk)
-                tmp.close()  # No Windows, é obrigatório fechar antes de outra lib abrir
-                caminho_temp = tmp.name
+        #         # Salva em arquivo temporário para processamento
+        #         sufixo = os.path.splitext(arquivo.name)[1]
+        #         tmp = tempfile.NamedTemporaryFile(suffix=sufixo, delete=False)
+        #         for chunk in arquivo.chunks():
+        #             tmp.write(chunk)
+        #         tmp.close()  # No Windows, é obrigatório fechar antes de outra lib abrir
+        #         caminho_temp = tmp.name
 
-                try:
-                    resultado_pipeline = processar_memorial_descritivo(
-                        caminho_dxf=caminho_temp, 
-                        projeto_id=projeto_id, 
-                        metadados_obra=dados_adicionais
-                    )
-                finally:
-                    # Remove o arquivo temporário após processamento
-                    os.unlink(caminho_temp)
+        #         try:
+        #             resultado_pipeline = processar_memorial_descritivo(
+        #                 caminho_dxf=caminho_temp, 
+        #                 projeto_id=projeto_id, 
+        #                 metadados_obra=dados_adicionais
+        #             )
+        #         finally:
+        #             # Remove o arquivo temporário após processamento
+        #             os.unlink(caminho_temp)
 
-                if resultado_pipeline.get("sucesso"):
-                    memorial_id = resultado_pipeline.get("memorial_db_id")
-                    if memorial_id:
-                        Memorial.objects.filter(id=memorial_id).update(arquivo=registro)
+        #         if resultado_pipeline.get("sucesso"):
+        #             memorial_id = resultado_pipeline.get("memorial_db_id")
+        #             if memorial_id:
+        #                 Memorial.objects.filter(id=memorial_id).update(arquivo=registro)
 
-                    registro.status_processamento = ArquivoUpload.Status.PROCESSADO
-                    registro.save()
-                    resposta["status_processamento"] = "processado"
-                    resposta["memorial_db_id"] = memorial_id
-                    resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
-                    resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias")
-                    resposta["confianca"] = resultado_pipeline.get("confianca")
-                else:
-                    registro.status_processamento = ArquivoUpload.Status.ERRO
-                    registro.save()
-                    resposta["status_processamento"] = "erro"
-                    resposta["erro_pipeline"] = resultado_pipeline.get("erro", "Erro desconhecido no pipeline.")
+        #             registro.status_processamento = ArquivoUpload.Status.PROCESSADO
+        #             registro.save()
+        #             resposta["status_processamento"] = "processado"
+        #             resposta["memorial_db_id"] = memorial_id
+        #             resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
+        #             resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias")
+        #             resposta["confianca"] = resultado_pipeline.get("confianca")
+        #         else:
+        #             registro.status_processamento = ArquivoUpload.Status.ERRO
+        #             registro.save()
+        #             resposta["status_processamento"] = "erro"
+        #             resposta["erro_pipeline"] = resultado_pipeline.get("erro", "Erro desconhecido no pipeline.")
 
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                registro.status_processamento = ArquivoUpload.Status.ERRO
-                registro.save()
-                resposta["status_processamento"] = "erro"
-                resposta["erro_pipeline"] = f"Exceção: {str(e)}"
+        #     except Exception as e:
+        #         import traceback
+        #         traceback.print_exc()
+        #         registro.status_processamento = ArquivoUpload.Status.ERRO
+        #         registro.save()
+        #         resposta["status_processamento"] = "erro"
+        #         resposta["erro_pipeline"] = f"Exceção: {str(e)}"
 
-        # 7. Se gerou memorial, inclui na resposta
-        memoriais = Memorial.objects.filter(arquivo=registro)
-        if memoriais.exists():
-            resposta["memorial"] = MemorialSerializer(memoriais.first()).data
+        # # 7. Se gerou memorial, inclui na resposta
+        # memoriais = Memorial.objects.filter(arquivo=registro)
+        # if memoriais.exists():
+        #     resposta["memorial"] = MemorialSerializer(memoriais.first()).data
 
         return Response(resposta, status=status.HTTP_201_CREATED)
 
