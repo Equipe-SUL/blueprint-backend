@@ -2,6 +2,7 @@ import os
 import tempfile
 from decimal import Decimal
 
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -115,18 +116,15 @@ class UploadArquivoView(APIView):
         return Response(resposta, status=status.HTTP_201_CREATED)
 
     def delete(self, request, projeto_id, arquivo_id):
-            """remove um arquivo associado a um projeto. agora vai porra"""
-            # Validação: só remove se pertence ao projeto informado
-            projeto = get_object_or_404(Projeto, id=projeto_id)
-            arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
+        # Validação: só remove se pertence ao projeto informado
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
 
-            # Remove arquivo físico (se existir)
-            if arquivo.caminho_arquivo and os.path.exists(arquivo.caminho_arquivo):
-                os.remove(arquivo.caminho_arquivo)
+        # TODO: fazer uma condição para reomver o remover fisicos (espera eu (álvaro) fazer...) 
 
-            # Remove registro do banco (remove vínculo do projeto automaticamente)
-            arquivo.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        # Remove registro do banco
+        arquivo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 
