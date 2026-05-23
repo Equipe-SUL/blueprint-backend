@@ -25,6 +25,11 @@ class UploadArquivoView(APIView):
 
     def get(self, request, projeto_id):
         projeto = get_object_or_404(Projeto, id=projeto_id)
+        # 1. Checar arquivo físico existe em média: se não existir mais, se não existir excluir do banco
+        for arquivo in projeto.arquivos.all():
+            if arquivo.caminho_arquivo and not default_storage.exists(arquivo.caminho_arquivo):
+                arquivo.delete()
+
         arquivos = projeto.arquivos.order_by("-enviado_em")
         serializer = UploadArquivoSerializer(arquivos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -60,18 +65,23 @@ class UploadArquivoView(APIView):
             )
         caminho_salvo = default_storage.save(caminho_relativo, arquivo)
 
-        # TODO: voltar Model para guardar caminho do arquivo fisico por textfield (ou dar uma olhada em FileField, ver o que da menos trabalho)
-
         # 4. Criar registro no banco (Supabase)
-        registro = ArquivoUpload.objects.create(
-            projeto=projeto,
-            nome_original=arquivo.name,
-            tamanho_mb=tamanho_mb,
-            status_processamento=ArquivoUpload.Status.PENDENTE,
-        )
+        try:
+            registro = ArquivoUpload.objects.create(
+                projeto=projeto,
+                nome_original=arquivo.name,
+                tamanho_mb=tamanho_mb,
+                caminho_arquivo=caminho_salvo,
+                status_processamento=ArquivoUpload.Status.PENDENTE,
+            )
+        except Exception as e:
+            # Se falhou ao criar registro, remove o arquivo salvo para evitar órfãos
+            default_storage.delete(caminho_salvo)
+            return Response(
+                {"erro": f"Erro ao salvar registro do arquivo no banco: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         
-        # TODO: implementar uma limpeza de arquivos órfãos (ex: quando um upload é criado mas o registro no banco falha)
-
         # 5. Inicializar a resposta base
         resposta = UploadArquivoSerializer(registro).data
 
@@ -141,7 +151,15 @@ class UploadArquivoView(APIView):
         projeto = get_object_or_404(Projeto, id=projeto_id)
         arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
 
-        # TODO: fazer uma condição para reomver o remover fisicos (espera eu (álvaro) fazer...) 
+        # Remove o arquivo físico apenas se ele ainda existir no storage.
+        if arquivo.caminho_arquivo and default_storage.exists(arquivo.caminho_arquivo):
+            try:
+                default_storage.delete(arquivo.caminho_arquivo)
+            except Exception as e:
+                return Response(
+                    {"erro": f"Erro ao remover arquivo do storage: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
         # Remove registro do banco
         arquivo.delete()
