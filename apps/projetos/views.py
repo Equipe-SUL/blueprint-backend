@@ -72,10 +72,12 @@ class UploadArquivoView(APIView):
                 caminho_temp = tmp.name
 
                 try:
+                    use_cad = request.data.get("use_cad_engine", "false").lower() in ("true", "1", "yes")
                     resultado_pipeline = processar_memorial_descritivo(
-                        caminho_dxf=caminho_temp, 
-                        projeto_id=projeto_id, 
-                        metadados_obra=dados_adicionais
+                        caminho_dxf=caminho_temp,
+                        projeto_id=projeto_id,
+                        metadados_obra=dados_adicionais,
+                        use_cad_engine=use_cad,
                     )
                 finally:
                     # Remove o arquivo temporário após processamento
@@ -93,6 +95,10 @@ class UploadArquivoView(APIView):
                     resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
                     resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias")
                     resposta["confianca"] = resultado_pipeline.get("confianca")
+                    if resultado_pipeline.get("cad_polygons_geojson"):
+                        resposta["cad_polygons_geojson"] = resultado_pipeline["cad_polygons_geojson"]
+                        resposta["cad_rooms"] = resultado_pipeline.get("cad_rooms", [])
+                        resposta["cad_adjacency"] = resultado_pipeline.get("cad_adjacency", {})
                 else:
                     registro.status_processamento = ArquivoUpload.Status.ERRO
                     registro.save()

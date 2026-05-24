@@ -25,6 +25,15 @@ class DescritivoState(TypedDict):
     resumo_por_camada: dict                 # Resumo por layer {camada: {qtd, area, perimetro, comprimento, volume}}
     estatisticas: dict                      # {total_entidades, total_ignoradas, total_camadas, total_ambientes}
 
+    # ── Nó 2b: CAD Engine (parser aprimorado) ────────────────────────────
+    use_cad_engine: bool                    # True = usar novo CAD engine (polygonizacao, healing, etc)
+    cad_engine_result: Optional[dict]       # Resultado completo do process_dxf() do CAD engine
+    cad_polygons_geojson: Optional[dict]    # GeoJSON dos poligonos detectados
+    cad_rooms: List[dict]                   # Ambientes classificados {nome_sugerido, centroid_x, centroid_y}
+    cad_adjacency: Optional[dict]           # Matriz de adjacencia entre ambientes
+    cad_topology_stats: Optional[dict]      # Estatisticas do grafo de topologia
+    cad_full_report: Optional[dict]         # Relatório completo do DXF: camadas, blocos, dimensoes, textos
+
     # ── Nó 3: Agente LLM Auditor ────────────────────────────────────────
     memorial_descritivo: dict               # JSON estruturado do Memorial Descritivo gerado pela LLM
     inconsistencias: List[str]              # Alertas de auditoria identificados pela LLM

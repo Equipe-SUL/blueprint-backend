@@ -16,4 +16,20 @@ db.sqlite3
 # Arquivos de Mídia/Uploads locais
 media/
 
+# Outputs gerados pelo pipeline
+pdfs/
+csv/
+output_pipeline/
+
+# Dados brutos (SINAPI, etc.)
 _raw_data/
+
+# ChromaDB local
+chroma_db/
+
+# Logs do Gradio
+gradio_*.txt
+_tmp_*.py
+
+# PDFs de normas (conteudo pesado, sob demanda)
+nbrs/
