@@ -34,6 +34,7 @@ class ArquivoUpload(models.Model):
         choices=Status.choices,
         default=Status.PENDENTE,
     )
+    caminho_arquivo = models.CharField(max_length=500, null=True, blank=True)  # Futuramente pode ser usado para armazenar o caminho no Supabase Storage
     tamanho_mb      = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     enviado_em = models.DateTimeField(auto_now_add=True)
 
@@ -105,4 +106,4 @@ class ItemProjeto(models.Model):
     status_mapeamento = models.CharField(max_length=20, default='pendente')
 
     def __str__(self):
-        return f"{self.descricao[:30]}... ({self.projeto.nome_obra})"   
+        return f"{self.descricao[:30]}... ({self.projeto.nome_obra})"   

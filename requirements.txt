@@ -13,6 +13,7 @@ colorama==0.4.6
 Django==6.0.3
 django-cors-headers==4.9.0
 djangorestframework==3.17.1
+djangorestframework_simplejwt==5.5.1
 durationpy==0.10
 et_xmlfile==2.0.0
 ezdxf==1.4.3
@@ -42,7 +43,6 @@ langchain-chroma==1.1.0
 langchain-core==1.2.24
 langchain-huggingface==1.2.1
 langchain-ollama==1.0.1
-langgraph>=0.2.0
 langsmith==0.7.24
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
@@ -73,6 +73,7 @@ pydantic==2.12.5
 pydantic-settings==2.13.1
 pydantic_core==2.41.5
 Pygments==2.20.0
+PyJWT==2.12.1
 pyparsing==3.3.2
 PyPika==0.51.1
 pyproject_hooks==1.2.0

@@ -13,5 +13,6 @@ urlpatterns = [
     path('projetos/<int:projeto_id>/upload/', UploadArquivoView.as_view(), name='upload_arquivo'),
     path('projetos/<int:projeto_id>/itens/', ItemProjetoView.as_view(), name='itens_projeto'),
     path('projetos/<int:projeto_id>/retomar/', RetomarPipelineView.as_view(), name='retomar_pipeline'),
+    path('projetos/<int:projeto_id>/upload/<int:arquivo_id>/', UploadArquivoView.as_view(), name='delete_arquivo_upload'),
     path('projetos/<int:projeto_id>/teste-planilha/', TesteUploadPlanilhaView.as_view(), name='teste_planilha'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
