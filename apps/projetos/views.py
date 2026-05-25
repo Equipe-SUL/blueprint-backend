@@ -1,9 +1,9 @@
 import os
-import tempfile
 from decimal import Decimal
 
 from django.shortcuts import get_object_or_404
 from django.core.files.storage import default_storage
+from django.conf import settings
 
 from rest_framework import viewsets, status, parsers
 from rest_framework.response import Response
@@ -82,74 +82,7 @@ class UploadArquivoView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         
-        # 5. Inicializar a resposta base
         resposta = UploadArquivoSerializer(registro).data
-
-        # # 6. Se for DXF, processar via pipeline usando arquivo temporário
-        # if arquivo.name.lower().endswith('.dxf'):
-        #     try:
-        #         from apps.projetos.ai.services.descritivo_service import processar_memorial_descritivo
-
-        #         dados_adicionais = {
-        #             "tipo_construcao": request.data.get("tipo_construcao", ""),
-        #             "padrao_acabamento": request.data.get("padrao_acabamento", ""),
-        #         }
-
-        #         # Salva em arquivo temporário para processamento
-        #         sufixo = os.path.splitext(arquivo.name)[1]
-        #         tmp = tempfile.NamedTemporaryFile(suffix=sufixo, delete=False)
-        #         for chunk in arquivo.chunks():
-        #             tmp.write(chunk)
-        #         tmp.close()  # No Windows, é obrigatório fechar antes de outra lib abrir
-        #         caminho_temp = tmp.name
-
-        #         try:
-        #             use_cad = request.data.get("use_cad_engine", "false").lower() in ("true", "1", "yes")
-        #             resultado_pipeline = processar_memorial_descritivo(
-        #                 caminho_dxf=caminho_temp,
-        #                 projeto_id=projeto_id,
-        #                 metadados_obra=dados_adicionais,
-        #                 use_cad_engine=use_cad,
-        #             )
-        #         finally:
-        #             # Remove o arquivo temporário após processamento
-        #             os.unlink(caminho_temp)
-
-        #         if resultado_pipeline.get("sucesso"):
-        #             memorial_id = resultado_pipeline.get("memorial_db_id")
-        #             if memorial_id:
-        #                 Memorial.objects.filter(id=memorial_id).update(arquivo=registro)
-
-        #             registro.status_processamento = ArquivoUpload.Status.PROCESSADO
-        #             registro.save()
-        #             resposta["status_processamento"] = "processado"
-        #             resposta["memorial_db_id"] = memorial_id
-        #             resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
-        #             resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias")
-        #             resposta["confianca"] = resultado_pipeline.get("confianca")
-        #             if resultado_pipeline.get("cad_polygons_geojson"):
-        #                 resposta["cad_polygons_geojson"] = resultado_pipeline["cad_polygons_geojson"]
-        #                 resposta["cad_rooms"] = resultado_pipeline.get("cad_rooms", [])
-        #                 resposta["cad_adjacency"] = resultado_pipeline.get("cad_adjacency", {})
-        #         else:
-        #             registro.status_processamento = ArquivoUpload.Status.ERRO
-        #             registro.save()
-        #             resposta["status_processamento"] = "erro"
-        #             resposta["erro_pipeline"] = resultado_pipeline.get("erro", "Erro desconhecido no pipeline.")
-
-        #     except Exception as e:
-        #         import traceback
-        #         traceback.print_exc()
-        #         registro.status_processamento = ArquivoUpload.Status.ERRO
-        #         registro.save()
-        #         resposta["status_processamento"] = "erro"
-        #         resposta["erro_pipeline"] = f"Exceção: {str(e)}"
-
-        # # 7. Se gerou memorial, inclui na resposta
-        # memoriais = Memorial.objects.filter(arquivo=registro)
-        # if memoriais.exists():
-        #     resposta["memorial"] = MemorialSerializer(memoriais.first()).data
-
         return Response(resposta, status=status.HTTP_201_CREATED)
 
     def delete(self, request, projeto_id, arquivo_id):
@@ -172,6 +105,107 @@ class UploadArquivoView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+
+
+class ProcessarArquivoView(APIView):
+    """
+    Endpoint para processar um arquivo já upado e gerar o documento (memorial).
+
+    POST /api/projetos/<projeto_id>/processar/<arquivo_id>/
+    Body JSON (opcional):
+      - use_cad_engine: bool (default false)
+      - tipo_construcao: str
+      - padrao_acabamento: str
+    """
+
+    def post(self, request, projeto_id, arquivo_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
+
+        if not arquivo.caminho_arquivo:
+            return Response(
+                {"erro": "Arquivo não possui caminho físico registrado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not arquivo.nome_original.lower().endswith(".dxf"):
+            return Response(
+                {"erro": "Formato não suportado. Apenas arquivos .DXF podem ser processados."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        caminho_fisico = os.path.join(settings.MEDIA_ROOT, arquivo.caminho_arquivo)
+        if not os.path.isfile(caminho_fisico):
+            return Response(
+                {"erro": f"Arquivo físico não encontrado em: {caminho_fisico}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        dados_adicionais = {
+            "tipo_construcao": request.data.get("tipo_construcao", ""),
+            "padrao_acabamento": request.data.get("padrao_acabamento", ""),
+        }
+
+        use_cad = request.data.get("use_cad_engine", "false") in (True, "true", "1", "yes")
+
+        try:
+            from apps.projetos.ai.services.descritivo_service import processar_memorial_descritivo
+
+            resultado_pipeline = processar_memorial_descritivo(
+                caminho_dxf=caminho_fisico,
+                projeto_id=projeto_id,
+                metadados_obra=dados_adicionais,
+                use_cad_engine=use_cad,
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {
+                    "sucesso": False,
+                    "erro": f"Exceção ao processar pipeline: {str(e)}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        resposta = {
+            "projeto_id": projeto_id,
+            "arquivo_id": arquivo_id,
+            "sucesso": resultado_pipeline.get("sucesso", False),
+        }
+
+        if resultado_pipeline.get("sucesso"):
+            memorial_id = resultado_pipeline.get("memorial_db_id")
+            if memorial_id:
+                Memorial.objects.filter(id=memorial_id).update(arquivo=arquivo)
+
+            arquivo.status_processamento = ArquivoUpload.Status.PROCESSADO
+            arquivo.save()
+
+            resposta["status_processamento"] = "processado"
+            resposta["memorial_db_id"] = memorial_id
+            resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
+            resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias", [])
+            resposta["confianca"] = resultado_pipeline.get("confianca")
+
+            cad_geo = resultado_pipeline.get("cad_polygons_geojson")
+            if cad_geo:
+                resposta["cad_polygons_geojson"] = cad_geo
+                resposta["cad_rooms"] = resultado_pipeline.get("cad_rooms", [])
+                resposta["cad_adjacency"] = resultado_pipeline.get("cad_adjacency", {})
+
+            memorial = Memorial.objects.filter(arquivo=arquivo).first()
+            if memorial:
+                resposta["memorial"] = MemorialSerializer(memorial).data
+
+            return Response(resposta, status=status.HTTP_200_OK)
+        else:
+            arquivo.status_processamento = ArquivoUpload.Status.ERRO
+            arquivo.save()
+
+            resposta["status_processamento"] = "erro"
+            resposta["erro"] = resultado_pipeline.get("erro", "Erro desconhecido no pipeline.")
+            return Response(resposta, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 class ItemProjetoView(APIView):

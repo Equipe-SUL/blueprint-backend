@@ -523,6 +523,7 @@ def node_llm_analyst(state: DescritivoState) -> dict:
     system_prompt = inject_nbrs_into_prompt(SYSTEM_PROMPT_AUDITOR, contexto_obra=contexto_obra, k=5)
 
     # ── Preparar dados para o prompt ─────────────────────────────────────
+    descricao_obra = metadados_obra.get("descricao") or "Não informada"
     metadados_str = json.dumps(state.get("metadados_obra", {}), ensure_ascii=False, indent=2)
     ambientes_str = json.dumps(state.get("ambientes", []), ensure_ascii=False, indent=2)
     textos_str = json.dumps(state.get("textos_legenda", []), ensure_ascii=False, indent=2)
@@ -561,6 +562,7 @@ def node_llm_analyst(state: DescritivoState) -> dict:
     # ── Montar prompt formatado ──────────────────────────────────────────
     user_prompt = USER_PROMPT_MEMORIAL_DESCRITIVO.format(
         metadados_obra=metadados_str,
+        descricao_obra=descricao_obra,
         ambientes=ambientes_str,
         textos_legenda=textos_str,
         resumo_por_camada=resumo_str,
