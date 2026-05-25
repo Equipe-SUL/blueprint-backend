@@ -1,7 +1,10 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-
+from rest_framework import generics
+from rest_framework.permissions import AllowAny
+from .serializers import RegistroSerializer
+from django.contrib.auth.models import User 
 
 @api_view(['GET'])
 def users_status(request):
@@ -23,3 +26,9 @@ def users_status(request):
         },
         status=status.HTTP_200_OK
     )
+
+
+class RegistroView(generics.CreateAPIView):
+    queryset = User.objects.all()           
+    permission_classes = (AllowAny,)         
+    serializer_class = RegistroSerializer
