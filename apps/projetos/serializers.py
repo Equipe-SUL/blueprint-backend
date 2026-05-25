@@ -27,6 +27,7 @@ class MemorialSerializer(serializers.ModelSerializer):
             "id",
             "projeto",
             "arquivo",
+            "memorial_descritivo",
             "memorial_calculo",
             "orcamento_final",
             "criado_em",

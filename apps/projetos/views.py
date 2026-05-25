@@ -2,6 +2,9 @@ import os
 import tempfile
 from decimal import Decimal
 
+from django.shortcuts import get_object_or_404
+from django.core.files.storage import default_storage
+
 from rest_framework import viewsets, status, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,6 +22,18 @@ class ProjetosViewSet(viewsets.ModelViewSet):
 
 class UploadArquivoView(APIView):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def get(self, request, projeto_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        # 1. Checar arquivo físico existe em média: se não existir mais, se não existir excluir do banco
+        for arquivo in projeto.arquivos.all():
+            if arquivo.caminho_arquivo and not default_storage.exists(arquivo.caminho_arquivo):
+                arquivo.delete()
+
+        arquivos = projeto.arquivos.order_by("-enviado_em")
+        serializer = UploadArquivoSerializer(arquivos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
     def post(self, request, projeto_id):
         # 1. Verificar se o projeto existe
@@ -38,83 +53,120 @@ class UploadArquivoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 3. Calcular tamanho em MB
+        # 3. Calcular tamanho em MB e Salvar o arquivo em media/projetos/<id>/<nome>
         tamanho_mb = Decimal(arquivo.size) / Decimal(1024 * 1024)
         tamanho_mb = round(tamanho_mb, 2)
 
-        # 4. Criar registro no banco (Supabase)
-        registro = ArquivoUpload.objects.create(
-            projeto=projeto,
-            nome_original=arquivo.name,
-            tamanho_mb=tamanho_mb,
-            status_processamento=ArquivoUpload.Status.PENDENTE,
-        )
+        caminho_relativo = os.path.join("projetos", str(projeto_id), arquivo.name)
+        if default_storage.exists(caminho_relativo):
+            return Response(
+                {"erro": f"Arquivo '{arquivo.name}' já existe para este projeto."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        caminho_salvo = default_storage.save(caminho_relativo, arquivo)
 
+        # 4. Criar registro no banco (Supabase)
+        try:
+            registro = ArquivoUpload.objects.create(
+                projeto=projeto,
+                nome_original=arquivo.name,
+                tamanho_mb=tamanho_mb,
+                caminho_arquivo=caminho_salvo,
+                status_processamento=ArquivoUpload.Status.PENDENTE,
+            )
+        except Exception as e:
+            # Se falhou ao criar registro, remove o arquivo salvo para evitar órfãos
+            default_storage.delete(caminho_salvo)
+            return Response(
+                {"erro": f"Erro ao salvar registro do arquivo no banco: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        
         # 5. Inicializar a resposta base
         resposta = UploadArquivoSerializer(registro).data
 
-        # 6. Se for DXF, processar via pipeline usando arquivo temporário
-        if arquivo.name.lower().endswith('.dxf'):
-            try:
-                from apps.projetos.ai.services.pipeline_service import processar_dxf_completo
+        # # 6. Se for DXF, processar via pipeline usando arquivo temporário
+        # if arquivo.name.lower().endswith('.dxf'):
+        #     try:
+        #         from apps.projetos.ai.services.descritivo_service import processar_memorial_descritivo
 
-                # Salva em arquivo temporário para processamento
-                sufixo = os.path.splitext(arquivo.name)[1]
-                tmp = tempfile.NamedTemporaryFile(suffix=sufixo, delete=False)
-                for chunk in arquivo.chunks():
-                    tmp.write(chunk)
-                tmp.close()  # No Windows, é obrigatório fechar antes de outra lib abrir
-                caminho_temp = tmp.name
+        #         dados_adicionais = {
+        #             "tipo_construcao": request.data.get("tipo_construcao", ""),
+        #             "padrao_acabamento": request.data.get("padrao_acabamento", ""),
+        #         }
 
-                try:
-                    resultado_pipeline = processar_dxf_completo(caminho_temp, projeto_id)
-                finally:
-                    # Remove o arquivo temporário após processamento
-                    os.unlink(caminho_temp)
-                    # Remove também o .geojson gerado (mesmo nome, extensão diferente)
-                    geojson_temp = caminho_temp.rsplit('.', 1)[0] + '.geojson'
-                    if os.path.exists(geojson_temp):
-                        os.unlink(geojson_temp)
+        #         # Salva em arquivo temporário para processamento
+        #         sufixo = os.path.splitext(arquivo.name)[1]
+        #         tmp = tempfile.NamedTemporaryFile(suffix=sufixo, delete=False)
+        #         for chunk in arquivo.chunks():
+        #             tmp.write(chunk)
+        #         tmp.close()  # No Windows, é obrigatório fechar antes de outra lib abrir
+        #         caminho_temp = tmp.name
 
-                if resultado_pipeline.get("sucesso"):
-                    # Cria o memorial na tabela separada
-                    memorial = Memorial.objects.create(
-                        projeto=projeto,
-                        arquivo=registro,
-                        memorial_calculo=resultado_pipeline.get("memorial_calculo"),
-                        orcamento_final=resultado_pipeline.get("orcamento_final"),
-                    )
-                    registro.status_processamento = ArquivoUpload.Status.PROCESSADO
-                    registro.save()
-                    resposta["status_processamento"] = "processado"
-                elif resultado_pipeline.get("pausado"):
-                    # Pipeline pausado — aguardando decisão humana (HITL)
-                    registro.status_processamento = ArquivoUpload.Status.PENDENTE
-                    registro.save()
-                    resposta["status_processamento"] = "aguardando_revisao"
-                    resposta["thread_id"] = resultado_pipeline.get("thread_id")
-                    resposta["interrupt_info"] = resultado_pipeline.get("interrupt_info")
-                    resposta["alertas"] = resultado_pipeline.get("alertas", [])
-                else:
-                    registro.status_processamento = ArquivoUpload.Status.ERRO
-                    registro.save()
-                    resposta["status_processamento"] = "erro"
-                    resposta["erro_pipeline"] = resultado_pipeline.get("erro", "Erro desconhecido no pipeline.")
+        #         try:
+        #             resultado_pipeline = processar_memorial_descritivo(
+        #                 caminho_dxf=caminho_temp, 
+        #                 projeto_id=projeto_id, 
+        #                 metadados_obra=dados_adicionais
+        #             )
+        #         finally:
+        #             # Remove o arquivo temporário após processamento
+        #             os.unlink(caminho_temp)
 
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                registro.status_processamento = ArquivoUpload.Status.ERRO
-                registro.save()
-                resposta["status_processamento"] = "erro"
-                resposta["erro_pipeline"] = f"Exceção: {str(e)}"
+        #         if resultado_pipeline.get("sucesso"):
+        #             memorial_id = resultado_pipeline.get("memorial_db_id")
+        #             if memorial_id:
+        #                 Memorial.objects.filter(id=memorial_id).update(arquivo=registro)
 
-        # 7. Se gerou memorial, inclui na resposta
-        memoriais = Memorial.objects.filter(arquivo=registro)
-        if memoriais.exists():
-            resposta["memorial"] = MemorialSerializer(memoriais.first()).data
+        #             registro.status_processamento = ArquivoUpload.Status.PROCESSADO
+        #             registro.save()
+        #             resposta["status_processamento"] = "processado"
+        #             resposta["memorial_db_id"] = memorial_id
+        #             resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
+        #             resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias")
+        #             resposta["confianca"] = resultado_pipeline.get("confianca")
+        #         else:
+        #             registro.status_processamento = ArquivoUpload.Status.ERRO
+        #             registro.save()
+        #             resposta["status_processamento"] = "erro"
+        #             resposta["erro_pipeline"] = resultado_pipeline.get("erro", "Erro desconhecido no pipeline.")
+
+        #     except Exception as e:
+        #         import traceback
+        #         traceback.print_exc()
+        #         registro.status_processamento = ArquivoUpload.Status.ERRO
+        #         registro.save()
+        #         resposta["status_processamento"] = "erro"
+        #         resposta["erro_pipeline"] = f"Exceção: {str(e)}"
+
+        # # 7. Se gerou memorial, inclui na resposta
+        # memoriais = Memorial.objects.filter(arquivo=registro)
+        # if memoriais.exists():
+        #     resposta["memorial"] = MemorialSerializer(memoriais.first()).data
 
         return Response(resposta, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, projeto_id, arquivo_id):
+        # Validação: só remove se pertence ao projeto informado
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
+
+        # Remove o arquivo físico apenas se ele ainda existir no storage.
+        if arquivo.caminho_arquivo and default_storage.exists(arquivo.caminho_arquivo):
+            try:
+                default_storage.delete(arquivo.caminho_arquivo)
+            except Exception as e:
+                return Response(
+                    {"erro": f"Erro ao remover arquivo do storage: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        # Remove registro do banco
+        arquivo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
 
 class ItemProjetoView(APIView):
     def get(self, request, projeto_id):
