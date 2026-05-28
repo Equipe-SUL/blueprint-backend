@@ -84,6 +84,12 @@ WSGI_APPLICATION = 'setup.wsgi.application'
 
 
 
+db_options = {}
+db_sslmode = os.getenv('DB_SSLMODE')
+if db_sslmode:
+    db_options['sslmode'] = db_sslmode
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -92,9 +98,7 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+        'OPTIONS': db_options,
     }
 }
 

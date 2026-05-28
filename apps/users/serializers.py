@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from .models import PerfilMilitar
 
 class RegistroSerializer(serializers.ModelSerializer):
@@ -12,6 +13,10 @@ class RegistroSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('first_name', 'email', 'senha', 'telefone', 'matricula', 'patente', 'unidade')
+
+    def validate_senha(self, value):
+        validate_password(value)
+        return value
 
     def create(self, validated_data):
         email = validated_data['email']
