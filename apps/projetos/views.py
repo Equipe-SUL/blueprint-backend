@@ -291,6 +291,37 @@ class RetomarPipelineView(APIView):
         return Response(resposta, status=status.HTTP_200_OK)
 
 
+class ServirMemorialPDFView(APIView):
+    """
+    GET /api/projetos/<projeto_id>/memorial/<memorial_id>/pdf/
+    Retorna o arquivo PDF do memorial descritivo para visualização no frontend.
+    """
+
+    def get(self, request, projeto_id, memorial_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        memorial = get_object_or_404(Memorial, id=memorial_id, projeto=projeto)
+
+        # Reconstruir o caminho do PDF (mesmo padrão do node_storage_export)
+        nome_obra = projeto.nome_obra.replace(" ", "_").lower()
+        pdf_filename = f"memorial_descritivo_{memorial.id}_{nome_obra}.pdf"
+        pdf_path = os.path.join(settings.MEDIA_ROOT, "memoriais", "descritivo", pdf_filename)
+
+        if not os.path.isfile(pdf_path):
+            return Response(
+                {"erro": f"PDF não encontrado: {pdf_filename}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from django.http import FileResponse
+
+        response = FileResponse(
+            open(pdf_path, "rb"),
+            content_type="application/pdf",
+        )
+        response["Content-Disposition"] = f'inline; filename="{pdf_filename}"'
+        return response
+
+
 class TesteUploadPlanilhaView(APIView):
     def post(self, request, projeto_id):
         return Response({"status": "teste concluído"})
