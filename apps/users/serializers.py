@@ -18,6 +18,16 @@ class RegistroSerializer(serializers.ModelSerializer):
         validate_password(value)
         return value
 
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Este email já está cadastrado.")
+        return value
+
+    def validate_matricula(self, value):
+        if PerfilMilitar.objects.filter(matricula=value).exists():
+            raise serializers.ValidationError("Esta matrícula já está cadastrada.")
+        return value
+
     def create(self, validated_data):
         email = validated_data['email']
         senha = validated_data['senha']
