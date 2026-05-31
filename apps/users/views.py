@@ -3,7 +3,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status, generics
 from django.contrib.auth.models import User
-from .serializers import RegistroSerializer
+from .serializers import RegistroSerializer, UserSerializer
 
 
 @api_view(['GET'])
@@ -27,3 +27,10 @@ class RegistroView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegistroSerializer
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def me(request):
+    serializer = UserSerializer(request.user)
+    return Response(serializer.data)

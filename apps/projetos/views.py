@@ -16,6 +16,18 @@ def server_status(request):
     from django.http import JsonResponse
     return JsonResponse({"status": "online"})
 
+
+class DashboardStatsView(APIView):
+    def get(self, request):
+        total_obras = Projeto.objects.count()
+        total_arquivos = ArquivoUpload.objects.count()
+        total_materiais = ItemProjeto.objects.count()
+        return Response({
+            "total_obras": total_obras,
+            "total_arquivos": total_arquivos,
+            "total_materiais": total_materiais,
+        })
+
 class ProjetosViewSet(viewsets.ModelViewSet):
     queryset = Projeto.objects.all()
     serializer_class = ProjetoSerializer
@@ -209,19 +221,38 @@ class ProcessarArquivoView(APIView):
 
 
 class ItemProjetoView(APIView):
-    def get(self, request, projeto_id):
+    def get(self, request, projeto_id, item_id=None):
         projeto = get_object_or_404(Projeto, id=projeto_id)
+        if item_id:
+            item = get_object_or_404(ItemProjeto, id=item_id, projeto=projeto)
+            serializer = ItemProjetoSerializer(item)
+            return Response(serializer.data)
         itens = ItemProjeto.objects.filter(projeto=projeto).order_by("-id")
         serializer = ItemProjetoSerializer(itens, many=True)
         return Response({"message": "Itens do projeto", "data": serializer.data})
 
-    def post(self, request, projeto_id):
+    def post(self, request, projeto_id, item_id=None):
         projeto = get_object_or_404(Projeto, id=projeto_id)
         serializer = ItemProjetoSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         serializer.save(projeto=projeto, origem=ItemProjeto.Origem.PROPRIO, status_mapeamento="pendente")
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def patch(self, request, projeto_id, item_id=None):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        item = get_object_or_404(ItemProjeto, id=item_id, projeto=projeto)
+        serializer = ItemProjetoSerializer(item, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, projeto_id, item_id=None):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        item = get_object_or_404(ItemProjeto, id=item_id, projeto=projeto)
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RetomarPipelineView(APIView):

@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import RegistroView
+from .views import RegistroView, me
 
 urlpatterns = [
     # Rota de checagem para o app de users.
@@ -9,6 +9,7 @@ urlpatterns = [
     # Aqui embaixo deve adicionar as rotas de API quando o model e as views
     # de autenticacao estiverem prontos. Exemplo:
     path('cadastro/', RegistroView.as_view(), name='cadastro'),
+    path('me/', me, name='me'),
     path('login/', TokenObtainPairView.as_view(), name='login'), # Esta é a rota que verifica a senha e gera o Token!
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     # path('logout/', views.logout, name='logout'),

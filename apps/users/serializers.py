@@ -3,6 +3,12 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from .models import PerfilMilitar
 
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'email', 'username']
+
 class RegistroSerializer(serializers.ModelSerializer):
     telefone = serializers.CharField(write_only=True, required=False)
     matricula = serializers.CharField(write_only=True)
