@@ -9,8 +9,8 @@ from rest_framework import viewsets, status, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Projeto, ArquivoUpload, Memorial
-from .serializers import ProjetoSerializer, UploadArquivoSerializer, MemorialSerializer
+from .models import Projeto, ArquivoUpload, Memorial, ItemProjeto
+from .serializers import ProjetoSerializer, UploadArquivoSerializer, MemorialSerializer, ItemProjetoSerializer
 
 def server_status(request):
     from django.http import JsonResponse
@@ -210,7 +210,10 @@ class ProcessarArquivoView(APIView):
 
 class ItemProjetoView(APIView):
     def get(self, request, projeto_id):
-        return Response({"itens": []})
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        itens = ItemProjeto.objects.filter(projeto=projeto).order_by("-id")
+        serializer = ItemProjetoSerializer(itens, many=True)
+        return Response({"message": "Itens do projeto", "data": serializer.data})
 
 
 class RetomarPipelineView(APIView):
@@ -366,6 +369,7 @@ class GerarOrcamentoView(APIView):
             resultado = processar_orcamento(
                 caminho_dxf=caminho_fisico,
                 projeto_id=projeto_id,
+                arquivo_id=arquivo_id,
                 metadados_obra=metadados,
                 taxa_bdi=taxa_bdi,
             )

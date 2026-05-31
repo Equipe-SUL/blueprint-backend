@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def processar_orcamento(
     caminho_dxf: str,
     projeto_id: int = None,
+    arquivo_id: int = None,
     metadados_obra: dict = None,
     taxa_bdi: float = 25.0,
 ) -> dict:
@@ -150,7 +151,49 @@ def processar_orcamento(
             logger.error(f"Erro ao salvar orcamento no banco: {e}")
             print(f"   Erro ao salvar no banco: {e}")
 
-    # ── 7. Gerar XLSX ─────────────────────────────────────────────────
+    # ── 7. Popular ItemProjeto ──────────────────────────────────────────
+    if projeto_id and memorial_db_id:
+        try:
+            from apps.projetos.models import Projeto, ArquivoUpload, ItemProjeto
+
+            projeto_obj = Projeto.objects.get(pk=projeto_id)
+            arquivo_obj = None
+            if arquivo_id:
+                arquivo_obj = ArquivoUpload.objects.filter(pk=arquivo_id).first()
+
+            import re
+
+            def _limpar_descricao(item: dict) -> str:
+                raw = item.get("sinapi_descricao", "")
+                if raw.startswith("ESTIMATIVA CUB | "):
+                    parts = raw.split(" | ")
+                    return parts[1] if len(parts) >= 2 else raw
+                m = re.search(r"Descrição:\s*(.*?)\s*\(Unidade:", raw)
+                if m:
+                    return m.group(1).strip()
+                return raw or item.get("descricao_cad", "")
+
+            itens_criados = 0
+            # Itens com matching SINAPI
+            for i in orcamento.get("itens", []):
+                ItemProjeto.objects.create(
+                    projeto=projeto_obj,
+                    arquivo=arquivo_obj,
+                    descricao=_limpar_descricao(i),
+                    unidade=i.get("sinapi_unidade", "un"),
+                    quantidade=i.get("quantidade", 0),
+                    preco_unitario=i.get("preco_unitario", 0),
+                    origem=ItemProjeto.Origem.SINAPI,
+                    status_mapeamento="mapeado",
+                )
+                itens_criados += 1
+
+            print(f"   Itens criados em ItemProjeto: {itens_criados}")
+        except Exception as e:
+            logger.error(f"Erro ao popular ItemProjeto: {e}")
+            print(f"   Erro ao popular ItemProjeto: {e}")
+
+    # ── 8. Gerar XLSX ─────────────────────────────────────────────────
     csv_path = None
     csv_filename = None
     try:
