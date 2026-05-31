@@ -215,6 +215,14 @@ class ItemProjetoView(APIView):
         serializer = ItemProjetoSerializer(itens, many=True)
         return Response({"message": "Itens do projeto", "data": serializer.data})
 
+    def post(self, request, projeto_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        serializer = ItemProjetoSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save(projeto=projeto, origem=ItemProjeto.Origem.PROPRIO, status_mapeamento="pendente")
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 class RetomarPipelineView(APIView):
     """
@@ -449,6 +457,106 @@ class ServirOrcamentoPDFView(APIView):
         )
         response["Content-Disposition"] = f'inline; filename="{pdf_filename}"'
         return response
+
+
+class ExportarMateriaisView(APIView):
+    """
+    Gera um .xlsx com os itens de material (ItemProjeto) do projeto.
+
+    GET /api/projetos/<projeto_id>/exportar-materiais/
+    """
+
+    def get(self, request, projeto_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        itens = ItemProjeto.objects.filter(projeto=projeto)
+
+        if not itens.exists():
+            return Response(
+                {"erro": "Nenhum material encontrado para exportar."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        sugestoes = []
+        itens_orcados = []
+        subtotal = 0.0
+
+        for idx, item in enumerate(itens):
+            preco = float(item.preco_unitario)
+            qtd = float(item.quantidade)
+            total = round(qtd * preco, 2)
+            subtotal += total
+
+            opcao = {
+                "codigo": "",
+                "descricao": item.descricao,
+                "unidade": item.unidade,
+                "preco_unitario": preco,
+                "_selecionado": True,
+            }
+
+            sugestoes.append({
+                "id_cad": str(item.id),
+                "item_original": item.descricao,
+                "quantidade": qtd,
+                "unidade": item.unidade,
+                "tipo": item.origem,
+                "selecao_automatica": 0,
+                "opcoes_sinapi": [opcao],
+            })
+
+            itens_orcados.append({
+                "id_cad": str(item.id),
+                "descricao_cad": item.descricao,
+                "sinapi_codigo": "",
+                "sinapi_descricao": item.descricao,
+                "sinapi_unidade": item.unidade,
+                "quantidade": qtd,
+                "preco_unitario": preco,
+                "custo_total": total,
+                "selecionado_por_llm": True,
+            })
+
+        orcamento = {
+            "itens": itens_orcados,
+            "resumo": {
+                "total_itens": len(itens_orcados),
+                "total_sem_itens": 0,
+                "subtotal": subtotal,
+                "taxa_bdi_percentual": 0,
+                "valor_bdi": 0,
+                "total_geral": subtotal,
+            },
+        }
+
+        metadados = {
+            "nome": projeto.nome_obra,
+            "localizacao": f"{projeto.cidade_obra}, {projeto.estado_obra}",
+        }
+
+        try:
+            from apps.projetos.ai.services.export_orcamento import exportar_csv
+            from django.conf import settings
+
+            nome_arquivo = f"materiais_{projeto.nome_obra.replace(' ', '_').lower()}.xlsx"
+            output_dir = os.path.join(settings.MEDIA_ROOT, "exportacoes")
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, nome_arquivo)
+
+            exportar_csv(sugestoes, orcamento, output_path, metadados=metadados)
+
+            from django.http import FileResponse
+
+            response = FileResponse(
+                open(output_path, "rb"),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            response["Content-Disposition"] = f'attachment; filename="{nome_arquivo}"'
+            return response
+        except Exception as e:
+            return Response(
+                {"erro": f"Erro ao gerar planilha: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class TesteUploadPlanilhaView(APIView):

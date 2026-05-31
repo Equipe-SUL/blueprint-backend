@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import UploadArquivoView, ProjetosViewSet, server_status, ItemProjetoView, TesteUploadPlanilhaView, RetomarPipelineView, ProcessarArquivoView, ServirMemorialPDFView, GerarOrcamentoView, ServirOrcamentoPDFView
+from .views import UploadArquivoView, ProjetosViewSet, server_status, ItemProjetoView, TesteUploadPlanilhaView, RetomarPipelineView, ProcessarArquivoView, ServirMemorialPDFView, GerarOrcamentoView, ServirOrcamentoPDFView, ExportarMateriaisView
 from django.conf import settings
 from django.conf.urls.static import static 
 from rest_framework import routers
@@ -18,5 +18,6 @@ urlpatterns = [
     path('projetos/<int:projeto_id>/memorial/<int:memorial_id>/pdf/', ServirMemorialPDFView.as_view(), name='servir_memorial_pdf'),
     path('projetos/<int:projeto_id>/gerar-orcamento/<int:arquivo_id>/', GerarOrcamentoView.as_view(), name='gerar_orcamento'),
     path('projetos/<int:projeto_id>/orcamento/<int:memorial_id>/pdf/', ServirOrcamentoPDFView.as_view(), name='servir_orcamento_pdf'),
+    path('projetos/<int:projeto_id>/exportar-materiais/', ExportarMateriaisView.as_view(), name='exportar_materiais'),
     path('projetos/<int:projeto_id>/teste-planilha/', TesteUploadPlanilhaView.as_view(), name='teste_planilha'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
