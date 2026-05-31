@@ -16,4 +16,4 @@ db.sqlite3
 # Arquivos de Mídia/Uploads locais
 media/
 
-_raw_data/
+_raw_data/chroma_db/chroma.sqlite3
