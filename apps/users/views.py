@@ -1,25 +1,36 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics
+from django.contrib.auth.models import User
+from .serializers import RegistroSerializer, UserSerializer
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])  # endpoint de status permanece público
 def users_status(request):
-    """
-    Endpoint de status da API de usuarios.
-    Serve como checagem minima de que o app foi configurado corretamente.
-    As views de cadastro, login, refresh e logout entram depois.
-    """
     return Response(
         {
             "status": "API de Usuários OK!",
             "endpoints": [
                 "/api/users/status/",
-                # Endpoints previstos para a task de autenticacao:
-                # "/api/users/register/",
-                # "/api/users/login/",
-                # "/api/users/logout/",
+                "/api/users/cadastro/",
+                "/api/users/login/",
+                "/api/users/token/refresh/",
             ]
         },
         status=status.HTTP_200_OK
     )
+
+
+class RegistroView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    permission_classes = (AllowAny,)
+    serializer_class = RegistroSerializer
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def me(request):
+    serializer = UserSerializer(request.user)
+    return Response(serializer.data)

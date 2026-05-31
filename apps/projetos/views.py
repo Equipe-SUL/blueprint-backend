@@ -1,20 +1,32 @@
 import os
-import tempfile
 from decimal import Decimal
 
 from django.shortcuts import get_object_or_404
 from django.core.files.storage import default_storage
+from django.conf import settings
 
 from rest_framework import viewsets, status, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Projeto, ArquivoUpload, Memorial
-from .serializers import ProjetoSerializer, UploadArquivoSerializer, MemorialSerializer
+from .models import Projeto, ArquivoUpload, Memorial, ItemProjeto
+from .serializers import ProjetoSerializer, UploadArquivoSerializer, MemorialSerializer, ItemProjetoSerializer
 
 def server_status(request):
     from django.http import JsonResponse
     return JsonResponse({"status": "online"})
+
+
+class DashboardStatsView(APIView):
+    def get(self, request):
+        total_obras = Projeto.objects.count()
+        total_arquivos = ArquivoUpload.objects.count()
+        total_materiais = ItemProjeto.objects.count()
+        return Response({
+            "total_obras": total_obras,
+            "total_arquivos": total_arquivos,
+            "total_materiais": total_materiais,
+        })
 
 class ProjetosViewSet(viewsets.ModelViewSet):
     queryset = Projeto.objects.all()
@@ -82,68 +94,7 @@ class UploadArquivoView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         
-        # 5. Inicializar a resposta base
         resposta = UploadArquivoSerializer(registro).data
-
-        # # 6. Se for DXF, processar via pipeline usando arquivo temporário
-        # if arquivo.name.lower().endswith('.dxf'):
-        #     try:
-        #         from apps.projetos.ai.services.descritivo_service import processar_memorial_descritivo
-
-        #         dados_adicionais = {
-        #             "tipo_construcao": request.data.get("tipo_construcao", ""),
-        #             "padrao_acabamento": request.data.get("padrao_acabamento", ""),
-        #         }
-
-        #         # Salva em arquivo temporário para processamento
-        #         sufixo = os.path.splitext(arquivo.name)[1]
-        #         tmp = tempfile.NamedTemporaryFile(suffix=sufixo, delete=False)
-        #         for chunk in arquivo.chunks():
-        #             tmp.write(chunk)
-        #         tmp.close()  # No Windows, é obrigatório fechar antes de outra lib abrir
-        #         caminho_temp = tmp.name
-
-        #         try:
-        #             resultado_pipeline = processar_memorial_descritivo(
-        #                 caminho_dxf=caminho_temp, 
-        #                 projeto_id=projeto_id, 
-        #                 metadados_obra=dados_adicionais
-        #             )
-        #         finally:
-        #             # Remove o arquivo temporário após processamento
-        #             os.unlink(caminho_temp)
-
-        #         if resultado_pipeline.get("sucesso"):
-        #             memorial_id = resultado_pipeline.get("memorial_db_id")
-        #             if memorial_id:
-        #                 Memorial.objects.filter(id=memorial_id).update(arquivo=registro)
-
-        #             registro.status_processamento = ArquivoUpload.Status.PROCESSADO
-        #             registro.save()
-        #             resposta["status_processamento"] = "processado"
-        #             resposta["memorial_db_id"] = memorial_id
-        #             resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
-        #             resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias")
-        #             resposta["confianca"] = resultado_pipeline.get("confianca")
-        #         else:
-        #             registro.status_processamento = ArquivoUpload.Status.ERRO
-        #             registro.save()
-        #             resposta["status_processamento"] = "erro"
-        #             resposta["erro_pipeline"] = resultado_pipeline.get("erro", "Erro desconhecido no pipeline.")
-
-        #     except Exception as e:
-        #         import traceback
-        #         traceback.print_exc()
-        #         registro.status_processamento = ArquivoUpload.Status.ERRO
-        #         registro.save()
-        #         resposta["status_processamento"] = "erro"
-        #         resposta["erro_pipeline"] = f"Exceção: {str(e)}"
-
-        # # 7. Se gerou memorial, inclui na resposta
-        # memoriais = Memorial.objects.filter(arquivo=registro)
-        # if memoriais.exists():
-        #     resposta["memorial"] = MemorialSerializer(memoriais.first()).data
-
         return Response(resposta, status=status.HTTP_201_CREATED)
 
     def delete(self, request, projeto_id, arquivo_id):
@@ -168,9 +119,140 @@ class UploadArquivoView(APIView):
 
 
 
+class ProcessarArquivoView(APIView):
+    """
+    Endpoint para processar um arquivo já upado e gerar o documento (memorial).
+
+    POST /api/projetos/<projeto_id>/processar/<arquivo_id>/
+    Body JSON (opcional):
+      - use_cad_engine: bool (default false)
+      - tipo_construcao: str
+      - padrao_acabamento: str
+    """
+
+    def post(self, request, projeto_id, arquivo_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
+
+        if not arquivo.caminho_arquivo:
+            return Response(
+                {"erro": "Arquivo não possui caminho físico registrado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not arquivo.nome_original.lower().endswith(".dxf"):
+            return Response(
+                {"erro": "Formato não suportado. Apenas arquivos .DXF podem ser processados."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        caminho_fisico = os.path.join(settings.MEDIA_ROOT, arquivo.caminho_arquivo)
+        if not os.path.isfile(caminho_fisico):
+            return Response(
+                {"erro": f"Arquivo físico não encontrado em: {caminho_fisico}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        dados_adicionais = {
+            "tipo_construcao": request.data.get("tipo_construcao", ""),
+            "padrao_acabamento": request.data.get("padrao_acabamento", ""),
+        }
+
+        use_cad = request.data.get("use_cad_engine", "false") in (True, "true", "1", "yes")
+
+        try:
+            from apps.projetos.ai.services.descritivo_service import processar_memorial_descritivo
+
+            resultado_pipeline = processar_memorial_descritivo(
+                caminho_dxf=caminho_fisico,
+                projeto_id=projeto_id,
+                metadados_obra=dados_adicionais,
+                use_cad_engine=use_cad,
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {
+                    "sucesso": False,
+                    "erro": f"Exceção ao processar pipeline: {str(e)}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        resposta = {
+            "projeto_id": projeto_id,
+            "arquivo_id": arquivo_id,
+            "sucesso": resultado_pipeline.get("sucesso", False),
+        }
+
+        if resultado_pipeline.get("sucesso"):
+            memorial_id = resultado_pipeline.get("memorial_db_id")
+            if memorial_id:
+                Memorial.objects.filter(id=memorial_id).update(arquivo=arquivo)
+
+            arquivo.status_processamento = ArquivoUpload.Status.PROCESSADO
+            arquivo.save()
+
+            resposta["status_processamento"] = "processado"
+            resposta["memorial_db_id"] = memorial_id
+            resposta["pdf_path"] = resultado_pipeline.get("pdf_path")
+            resposta["inconsistencias"] = resultado_pipeline.get("inconsistencias", [])
+            resposta["confianca"] = resultado_pipeline.get("confianca")
+
+            cad_geo = resultado_pipeline.get("cad_polygons_geojson")
+            if cad_geo:
+                resposta["cad_polygons_geojson"] = cad_geo
+                resposta["cad_rooms"] = resultado_pipeline.get("cad_rooms", [])
+                resposta["cad_adjacency"] = resultado_pipeline.get("cad_adjacency", {})
+
+            memorial = Memorial.objects.filter(arquivo=arquivo).first()
+            if memorial:
+                resposta["memorial"] = MemorialSerializer(memorial).data
+
+            return Response(resposta, status=status.HTTP_200_OK)
+        else:
+            arquivo.status_processamento = ArquivoUpload.Status.ERRO
+            arquivo.save()
+
+            resposta["status_processamento"] = "erro"
+            resposta["erro"] = resultado_pipeline.get("erro", "Erro desconhecido no pipeline.")
+            return Response(resposta, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
 class ItemProjetoView(APIView):
-    def get(self, request, projeto_id):
-        return Response({"itens": []})
+    def get(self, request, projeto_id, item_id=None):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        if item_id:
+            item = get_object_or_404(ItemProjeto, id=item_id, projeto=projeto)
+            serializer = ItemProjetoSerializer(item)
+            return Response(serializer.data)
+        itens = ItemProjeto.objects.filter(projeto=projeto).order_by("-id")
+        serializer = ItemProjetoSerializer(itens, many=True)
+        return Response({"message": "Itens do projeto", "data": serializer.data})
+
+    def post(self, request, projeto_id, item_id=None):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        serializer = ItemProjetoSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save(projeto=projeto, origem=ItemProjeto.Origem.PROPRIO, status_mapeamento="pendente")
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def patch(self, request, projeto_id, item_id=None):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        item = get_object_or_404(ItemProjeto, id=item_id, projeto=projeto)
+        serializer = ItemProjetoSerializer(item, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, projeto_id, item_id=None):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        item = get_object_or_404(ItemProjeto, id=item_id, projeto=projeto)
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RetomarPipelineView(APIView):
@@ -249,6 +331,263 @@ class RetomarPipelineView(APIView):
             resposta["alertas"] = resultado.get("alertas", [])
 
         return Response(resposta, status=status.HTTP_200_OK)
+
+
+class ServirMemorialPDFView(APIView):
+    """
+    GET /api/projetos/<projeto_id>/memorial/<memorial_id>/pdf/
+    Retorna o arquivo PDF do memorial descritivo para visualização no frontend.
+    """
+
+    def get(self, request, projeto_id, memorial_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        memorial = get_object_or_404(Memorial, id=memorial_id, projeto=projeto)
+
+        nome_obra = projeto.nome_obra.replace(" ", "_").lower()
+        pdf_filename = f"memorial_descritivo_{memorial.id}_{nome_obra}.pdf"
+        pdf_path = os.path.join(settings.MEDIA_ROOT, "memoriais", "descritivo", pdf_filename)
+
+        if not os.path.isfile(pdf_path):
+            return Response(
+                {"erro": f"PDF não encontrado: {pdf_filename}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from django.http import FileResponse
+
+        response = FileResponse(
+            open(pdf_path, "rb"),
+            content_type="application/pdf",
+        )
+        response["Content-Disposition"] = f'inline; filename="{pdf_filename}"'
+        return response
+
+
+class GerarOrcamentoView(APIView):
+    """
+    Gera o orçamento SINAPI a partir de um arquivo DXF já upado
+    e retorna o CSV como download.
+
+    POST /api/projetos/<projeto_id>/gerar-orcamento/<arquivo_id>/
+    """
+
+    def post(self, request, projeto_id, arquivo_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
+
+        if not arquivo.caminho_arquivo:
+            return Response(
+                {"erro": "Arquivo não possui caminho físico registrado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not arquivo.nome_original.lower().endswith(".dxf"):
+            return Response(
+                {"erro": "Formato não suportado. Apenas arquivos .DXF podem ser processados."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        caminho_fisico = os.path.join(settings.MEDIA_ROOT, arquivo.caminho_arquivo)
+        if not os.path.isfile(caminho_fisico):
+            return Response(
+                {"erro": f"Arquivo físico não encontrado em: {caminho_fisico}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        metadados = {
+            "nome": projeto.nome_obra,
+            "localizacao": f"{projeto.cidade_obra}, {projeto.estado_obra}",
+            "descricao": projeto.desc_obra,
+        }
+
+        taxa_bdi = float(request.data.get("taxa_bdi", projeto.taxa_bdi or 25.0))
+
+        try:
+            from apps.projetos.ai.services.orcamento_full_service import processar_orcamento
+
+            resultado = processar_orcamento(
+                caminho_dxf=caminho_fisico,
+                projeto_id=projeto_id,
+                arquivo_id=arquivo_id,
+                metadados_obra=metadados,
+                taxa_bdi=taxa_bdi,
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {
+                    "sucesso": False,
+                    "erro": f"Exceção ao gerar orçamento: {str(e)}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if not resultado.get("sucesso"):
+            arquivo.status_processamento = ArquivoUpload.Status.ERRO
+            arquivo.save()
+            return Response(
+                {
+                    "sucesso": False,
+                    "erro": resultado.get("erro", "Erro desconhecido ao gerar orçamento."),
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        memorial_id = resultado.get("memorial_db_id")
+        if memorial_id:
+            Memorial.objects.filter(id=memorial_id).update(arquivo=arquivo)
+
+        arquivo.status_processamento = ArquivoUpload.Status.PROCESSADO
+        arquivo.save()
+
+        xlsx_path = resultado.get("csv_path")
+        xlsx_filename = resultado.get("csv_filename", f"orcamento_{projeto.nome_obra}.xlsx")
+
+        from django.http import FileResponse
+
+        if not xlsx_path or not os.path.isfile(xlsx_path):
+            return Response(
+                {"sucesso": False, "erro": "Arquivo gerado não encontrado no servidor."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        response = FileResponse(
+            open(xlsx_path, "rb"),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{xlsx_filename}"'
+        return response
+
+
+class ServirOrcamentoPDFView(APIView):
+    """
+    GET /api/projetos/<projeto_id>/orcamento/<memorial_id>/pdf/
+    Retorna o arquivo PDF do orçamento para visualização no frontend.
+    """
+
+    def get(self, request, projeto_id, memorial_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        memorial = get_object_or_404(Memorial, id=memorial_id, projeto=projeto)
+
+        nome_obra = projeto.nome_obra.replace(" ", "_").lower()
+        pdf_filename = f"orcamento_{memorial.id}_{nome_obra}.pdf"
+        pdf_path = os.path.join(settings.MEDIA_ROOT, "memoriais", "orcamento", pdf_filename)
+
+        if not os.path.isfile(pdf_path):
+            return Response(
+                {"erro": f"PDF do orçamento não encontrado: {pdf_filename}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from django.http import FileResponse
+
+        response = FileResponse(
+            open(pdf_path, "rb"),
+            content_type="application/pdf",
+        )
+        response["Content-Disposition"] = f'inline; filename="{pdf_filename}"'
+        return response
+
+
+class ExportarMateriaisView(APIView):
+    """
+    Gera um .xlsx com os itens de material (ItemProjeto) do projeto.
+
+    GET /api/projetos/<projeto_id>/exportar-materiais/
+    """
+
+    def get(self, request, projeto_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        itens = ItemProjeto.objects.filter(projeto=projeto)
+
+        if not itens.exists():
+            return Response(
+                {"erro": "Nenhum material encontrado para exportar."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        sugestoes = []
+        itens_orcados = []
+        subtotal = 0.0
+
+        for idx, item in enumerate(itens):
+            preco = float(item.preco_unitario)
+            qtd = float(item.quantidade)
+            total = round(qtd * preco, 2)
+            subtotal += total
+
+            opcao = {
+                "codigo": "",
+                "descricao": item.descricao,
+                "unidade": item.unidade,
+                "preco_unitario": preco,
+                "_selecionado": True,
+            }
+
+            sugestoes.append({
+                "id_cad": str(item.id),
+                "item_original": item.descricao,
+                "quantidade": qtd,
+                "unidade": item.unidade,
+                "tipo": item.origem,
+                "selecao_automatica": 0,
+                "opcoes_sinapi": [opcao],
+            })
+
+            itens_orcados.append({
+                "id_cad": str(item.id),
+                "descricao_cad": item.descricao,
+                "sinapi_codigo": "",
+                "sinapi_descricao": item.descricao,
+                "sinapi_unidade": item.unidade,
+                "quantidade": qtd,
+                "preco_unitario": preco,
+                "custo_total": total,
+                "selecionado_por_llm": True,
+            })
+
+        orcamento = {
+            "itens": itens_orcados,
+            "resumo": {
+                "total_itens": len(itens_orcados),
+                "total_sem_itens": 0,
+                "subtotal": subtotal,
+                "taxa_bdi_percentual": 0,
+                "valor_bdi": 0,
+                "total_geral": subtotal,
+            },
+        }
+
+        metadados = {
+            "nome": projeto.nome_obra,
+            "localizacao": f"{projeto.cidade_obra}, {projeto.estado_obra}",
+        }
+
+        try:
+            from apps.projetos.ai.services.export_orcamento import exportar_csv
+            from django.conf import settings
+
+            nome_arquivo = f"materiais_{projeto.nome_obra.replace(' ', '_').lower()}.xlsx"
+            output_dir = os.path.join(settings.MEDIA_ROOT, "exportacoes")
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, nome_arquivo)
+
+            exportar_csv(sugestoes, orcamento, output_path, metadados=metadados)
+
+            from django.http import FileResponse
+
+            response = FileResponse(
+                open(output_path, "rb"),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            response["Content-Disposition"] = f'attachment; filename="{nome_arquivo}"'
+            return response
+        except Exception as e:
+            return Response(
+                {"erro": f"Erro ao gerar planilha: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class TesteUploadPlanilhaView(APIView):

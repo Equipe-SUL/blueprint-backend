@@ -22,7 +22,7 @@ django.setup()
 from apps.projetos.ai.services.pipeline_service import processar_dxf_completo
 
 # Usa o Estrutura.dxf direto do Desktop (ou troque pelo caminho do arquivo já salvo)
-CAMINHO_DXF = os.path.join(caminho_raiz, 'teste_estrutura.dxf')
+CAMINHO_DXF = os.path.join(caminho_raiz, 'scripts_teste', 'teste_estrutura.dxf')
 PROJETO_ID = 21
 
 

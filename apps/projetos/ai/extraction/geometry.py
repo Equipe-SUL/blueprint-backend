@@ -65,7 +65,9 @@ def circulo_para_poligono(
 ) -> List[Coord2D]:
     """Aproxima um círculo por um polígono fechado."""
     pontos = arco_para_pontos(cx, cy, raio, 0, 360, segmentos)
-    pontos.append(pontos[0])  # fecha o anel
+    # Garantir fechamento sem duplicata
+    if pontos and pontos[0] != pontos[-1]:
+        pontos.append(pontos[0])
     return pontos
 
 

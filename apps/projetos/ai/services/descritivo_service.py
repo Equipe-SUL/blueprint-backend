@@ -22,14 +22,17 @@ def processar_memorial_descritivo(
     caminho_dxf: str,
     projeto_id: int = None,
     metadados_obra: dict = None,
+    use_cad_engine: bool = False,
 ) -> dict:
     """
     Executa o pipeline completo do Memorial Descritivo via LangGraph.
 
     Parâmetros:
-        caminho_dxf   : Caminho absoluto do arquivo .DXF
-        projeto_id    : ID do projeto no banco (FK para Projeto)
-        metadados_obra: Dict com {nome, localizacao, tipo_construcao, padrao_acabamento}
+        caminho_dxf    : Caminho absoluto do arquivo .DXF
+        projeto_id     : ID do projeto no banco (FK para Projeto)
+        metadados_obra : Dict com {nome, localizacao, tipo_construcao, padrao_acabamento}
+        use_cad_engine : Se True, usa o novo CAD engine com polygonizacao,
+                         healing, topologia e classificacao semantica
 
     Retorna:
         dict com:
@@ -39,6 +42,7 @@ def processar_memorial_descritivo(
           - pdf_path: caminho do PDF gerado
           - inconsistencias: lista de alertas da auditoria
           - confianca: nível de confiança da análise
+          - cad_*: dados enriquecidos do novo engine
           - erro: mensagem de erro (se houver)
     """
     from apps.projetos.ai.grafo_novo.builder_descritivo import get_grafo_descritivo
@@ -52,6 +56,7 @@ def processar_memorial_descritivo(
         "caminho_dxf": caminho_dxf,
         "projeto_id": projeto_id,
         "metadados_obra": metadados_obra or {},
+        "use_cad_engine": use_cad_engine,
     }
 
     # ── Invocar grafo ────────────────────────────────────────────────────
@@ -84,6 +89,13 @@ def processar_memorial_descritivo(
         "thread_id": thread_id,
         "etapa_final": resultado.get("etapa_atual", "desconhecida"),
     }
+
+    # Incluir dados do CAD engine se disponiveis
+    if resultado.get("cad_polygons_geojson"):
+        resposta["cad_polygons_geojson"] = resultado["cad_polygons_geojson"]
+        resposta["cad_rooms"] = resultado.get("cad_rooms", [])
+        resposta["cad_adjacency"] = resultado.get("cad_adjacency", {})
+        resposta["cad_topology_stats"] = resultado.get("cad_topology_stats", {})
 
     if erro:
         resposta["erro"] = erro

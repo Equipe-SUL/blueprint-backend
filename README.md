@@ -64,7 +64,10 @@ DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 DB_HOST=localhost
 DB_PORT=5432
+DB_SSLMODE=disable
 ```
+
+Para Supabase ou outro banco remoto com TLS, use `DB_SSLMODE=require` e o host remoto.
 
 ## 4) Aplicar migracoes
 

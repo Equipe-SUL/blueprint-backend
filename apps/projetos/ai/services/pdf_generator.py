@@ -160,9 +160,13 @@ def gerar_pdf_memorial_descritivo(
     elementos.append(info_table)
 
     desc_geral = dados_gerais.get("descricao_geral", "")
+    descricao_obra = metadados.get("descricao_obra", "")
     if desc_geral:
         elementos.append(Spacer(1, 8))
         elementos.append(Paragraph(desc_geral, corpo_style))
+    elif descricao_obra:
+        elementos.append(Spacer(1, 8))
+        elementos.append(Paragraph(descricao_obra, corpo_style))
 
     # Ambientes
     ambientes = memorial_dict.get("ambientes", [])
@@ -177,11 +181,17 @@ def gerar_pdf_memorial_descritivo(
 
             elementos.append(Paragraph(f"2.{i} {nome_amb}", subsecao_style))
 
+            # Helper for formatting values that might be strings
+            def format_val(val, unit):
+                if isinstance(val, (int, float)):
+                    return f"{val:.2f} {unit}"
+                return str(val)
+
             # Tabela de dados do ambiente
             amb_data = [
-                ["Área:", f"{area:.2f} m²",
-                 "Perímetro:", f"{perim:.2f} m",
-                 "Pé-direito:", f"{pd:.2f} m"],
+                ["Área:", format_val(area, "m²"),
+                 "Perímetro:", format_val(perim, "m"),
+                 "Pé-direito:", format_val(pd, "m")],
             ]
             amb_table = Table(amb_data, colWidths=[3 * cm, 2.5 * cm, 3 * cm, 2.5 * cm, 3 * cm, 2.5 * cm])
             amb_table.setStyle(TableStyle([
@@ -299,6 +309,19 @@ def gerar_pdf_memorial_descritivo(
         elementos.append(Paragraph("6. INCONSISTÊNCIAS DETECTADAS", secao_style))
         for inc in inconsistencias:
             elementos.append(Paragraph(f"⚠ {inc}", alerta_style))
+
+    # Normas Técnicas (NBRs)
+    normas = memorial_dict.get("normas_tecnicas", [])
+    if normas:
+        elementos.append(Paragraph("7. NORMAS TÉCNICAS APLICÁVEIS", secao_style))
+        for nbr in normas:
+            codigo = nbr.get("nbr", "NBR")
+            titulo = nbr.get("titulo", "")
+            aplicacao = nbr.get("aplicacao", "")
+            texto = f"<b>{codigo}</b> — {titulo}"
+            if aplicacao:
+                texto += f"<br/>&nbsp;&nbsp;&nbsp;Aplicação: {aplicacao}"
+            elementos.append(Paragraph(texto, corpo_style))
 
     # Rodapé
     elementos.append(Spacer(1, 30))

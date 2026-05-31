@@ -56,7 +56,9 @@ class ItemProjetoSerializer(serializers.ModelSerializer):
         # pois o sistema vai preencher isso via Regra de Negócio (RN.1 e RN.2)
         read_only_fields = ['origem', 'status_mapeamento']
         extra_kwargs = {
+            'projeto': {'required': False},
             'arquivo': {'required': False, 'allow_null': True},
-            'preco_unitario': {'required': False , 'default' : '0.00'}
+            'catalogo': {'required': False, 'allow_null': True},
+            'preco_unitario': {'required': False, 'default': '0.00'},
         }
 
