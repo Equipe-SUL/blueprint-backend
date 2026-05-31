@@ -4,90 +4,256 @@ export_orcamento.py
 Exporta resultados de orcamento SINAPI para CSV e PDF.
 """
 import os
-import csv
 from datetime import datetime
 from typing import List, Dict, Optional
+
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
+
+def fmt_moeda(valor: float) -> str:
+    """Formata como R$ 1.234,56 — string, pra evitar dependência de locale do Excel."""
+    if valor is None:
+        return "R$ 0,00"
+    s = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {s}"
 
 
 def exportar_csv(
     sugestoes: List[Dict],
     orcamento: Dict,
     output_path: str,
+    metadados: Optional[Dict] = None,
 ) -> str:
     """
-    Exporta planilha de orcamento para CSV.
+    Exporta planilha de orcamento para .xlsx formatado (Excel).
 
     Args:
         sugestoes: Saida do gerar_sugestoes_orcamento()
         orcamento: Saida do calcular_orcamento_final()
-        output_path: Caminho para salvar o CSV
+        output_path: Caminho para salvar o .xlsx
+        metadados: Metadados da obra (opcional) para cabecalho
 
     Returns:
         Caminho do arquivo gerado
     """
-    with open(output_path, 'w', newline='', encoding='utf-8-sig') as f:
-        writer = csv.writer(f, delimiter=';')
+    if not output_path.endswith(".xlsx"):
+        output_path = output_path.rsplit(".", 1)[0] + ".xlsx"
 
-        # Cabecalho
-        writer.writerow(["ITEM", "TIPO", "DESCRICAO CAD", "QTD", "UN",
-                         "COD SINAPI", "DESCRICAO SINAPI", "PRECO UNIT",
-                         "TOTAL", "STATUS"])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Orcamento SINAPI"
 
-        # Itens do orcamento
-        itens_orcados = orcamento.get("itens", [])
-        orcado_ids = {i.get("id_cad") for i in itens_orcados}
+    nome_obra = (metadados or {}).get("nome", "")
+    local = (metadados or {}).get("localizacao", "")
 
-        for s in sugestoes:
-            id_cad = s.get("id_cad", "")
-            item_original = s.get("item_original", "")
-            quantidade = s.get("quantidade", 0)
-            unidade = s.get("unidade", "un")
-            tipo = s.get("tipo", "desconhecido")
-            auto = s.get("selecao_automatica")
-            opcoes = s.get("opcoes_sinapi", [])
+    # ── Estilos ─────────────────────────────────────────────────────────
+    bold = Font(bold=True, size=11)
+    bold_white = Font(bold=True, size=11, color="FFFFFF")
+    title_font = Font(bold=True, size=14)
+    header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+    resumo_fill = PatternFill(start_color="D5F5E3", end_color="D5F5E3", fill_type="solid")
+    bdi_fill = PatternFill(start_color="F2F4F4", end_color="F2F4F4", fill_type="solid")
+    total_fill = PatternFill(start_color="A9DFBF", end_color="A9DFBF", fill_type="solid")
+    sem_match_fill = PatternFill(start_color="FADBD8", end_color="FADBD8", fill_type="solid")
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+    qty_fmt = '0,00'
 
-            if auto is not None and auto < len(opcoes):
-                # Item com matching SINAPI
-                escolha = opcoes[auto]
-                writer.writerow([
-                    id_cad, tipo, item_original, quantidade, unidade,
-                    escolha.get("codigo", ""),
-                    escolha.get("descricao", "").split("| Descrição: ")[-1][:120],
-                    f"R$ {float(escolha.get('preco_unitario', 0)):.2f}",
-                    f"R$ {float(quantidade) * float(escolha.get('preco_unitario', 0)):.2f}",
-                    "OK",
-                ])
-            else:
-                # Sem matching
-                writer.writerow([
-                    id_cad, tipo, item_original, quantidade, unidade,
-                    "", "", "R$ 0,00", "R$ 0,00",
-                    "SEM MATCH SINAPI",
-                ])
+    # ── Cabeçalho ───────────────────────────────────────────────────────
+    r = 1
+    ws.cell(r, 1, f"ORÇAMENTO SINAPI - {nome_obra}").font = title_font
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=10)
+    r += 1
+    if local:
+        ws.cell(r, 1, f"Local: {local}").font = bold
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=10)
+        r += 1
+    ws.cell(r, 1, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}").font = Font(size=10, italic=True)
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=10)
+    r += 2
 
-        # Linha em branco
-        writer.writerow([])
+    resumo = orcamento.get("resumo", {})
 
-        # Resumo
-        resumo = orcamento.get("resumo", {})
-        writer.writerow(["RESUMO", "", "", "", "", "", "", "", "", ""])
-        writer.writerow(["Total itens orcados", "", resumo.get("total_itens", 0),
-                         "", "", "", "", "", "", ""])
-        writer.writerow(["Subtotal", "", f"R$ {resumo.get('subtotal', 0):.2f}",
-                         "", "", "", "", "", "", ""])
-        writer.writerow(["BDI (%)", "", f"{resumo.get('taxa_bdi_percentual', 0):.2f}%",
-                         "", "", "", "", "", "", ""])
-        writer.writerow(["Valor BDI", "", f"R$ {resumo.get('valor_bdi', 0):.2f}",
-                         "", "", "", "", "", "", ""])
-        writer.writerow(["TOTAL GERAL", "", f"R$ {resumo.get('total_geral', 0):.2f}",
-                         "", "", "", "", "", "", ""])
-        writer.writerow(["Itens sem matching", "", resumo.get("total_sem_itens", 0),
-                         "", "", "", "", "", "", ""])
+    subtotal = float(resumo.get("subtotal", 0))
+    valor_bdi = float(resumo.get("valor_bdi", 0))
+    total_geral = float(resumo.get("total_geral", 0))
+    taxa_bdi = float(resumo.get("taxa_bdi_percentual", 0))
 
-        # Data
-        writer.writerow([])
-        writer.writerow(["Gerado em:", datetime.now().strftime("%d/%m/%Y %H:%M")])
+    # ── Resumo Financeiro ──────────────────────────────────────────────
+    ws.cell(r, 1, "RESUMO FINANCEIRO").font = Font(bold=True, size=12, color="2C3E50")
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=8)
+    r += 1
 
+    resumo_header = ["", "DESCRIÇÃO", "", "", "", "", "VALOR", ""]
+    for c, h in enumerate(resumo_header, 1):
+        if h:
+            cell = ws.cell(r, c, h)
+            cell.font = bold_white
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = thin_border
+        else:
+            ws.cell(r, c).border = thin_border
+    r += 1
+
+    for label, valor, fill in [
+        ("Subtotal", subtotal, resumo_fill),
+        (f"BDI ({taxa_bdi:.1f}%)", valor_bdi, bdi_fill),
+    ]:
+        ws.cell(r, 1).border = thin_border
+        ws.cell(r, 2, label).font = bold
+        ws.cell(r, 2).fill = fill
+        ws.cell(r, 2).border = thin_border
+        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+        cell_v = ws.cell(r, 7, fmt_moeda(valor))
+        cell_v.font = bold
+        cell_v.fill = fill
+        cell_v.border = thin_border
+        cell_v.alignment = Alignment(horizontal="right")
+        ws.merge_cells(start_row=r, start_column=7, end_row=r, end_column=8)
+        ws.cell(r, 8).border = thin_border
+        r += 1
+
+    ws.cell(r, 1).border = thin_border
+    ws.cell(r, 2, "TOTAL GERAL").font = Font(bold=True, size=12, color="1E8449")
+    ws.cell(r, 2).fill = total_fill
+    ws.cell(r, 2).border = thin_border
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    cell_t = ws.cell(r, 7, fmt_moeda(total_geral))
+    cell_t.font = Font(bold=True, size=12, color="1E8449")
+    cell_t.fill = total_fill
+    cell_t.border = thin_border
+    cell_t.alignment = Alignment(horizontal="right")
+    ws.merge_cells(start_row=r, start_column=7, end_row=r, end_column=8)
+    ws.cell(r, 8).border = thin_border
+    r += 2
+
+    # ── Tabela de Itens ────────────────────────────────────────────────
+    ws.cell(r, 1, "ITENS DO ORÇAMENTO").font = Font(bold=True, size=12, color="2C3E50")
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=10)
+    r += 1
+
+    headers = [
+        "ITEM", "TIPO", "DESCRIÇÃO", "QTD", "UN",
+        "CÓDIGO SINAPI", "DESCRIÇÃO SINAPI",
+        "PREÇO UNIT.", "TOTAL", "STATUS",
+    ]
+    for c, h in enumerate(headers, 1):
+        cell = ws.cell(r, c, h)
+        cell.font = bold_white
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = thin_border
+    r += 1
+
+    for s in sugestoes:
+        id_cad = s.get("id_cad", "")
+        item_original = s.get("item_original", "")
+        quantidade = float(s.get("quantidade", 0))
+        unidade = s.get("unidade", "un")
+        tipo = s.get("tipo", "desconhecido")
+        auto = s.get("selecao_automatica")
+        opcoes = s.get("opcoes_sinapi", [])
+
+        ws.cell(r, 1, id_cad).border = thin_border
+        ws.cell(r, 2, tipo).border = thin_border
+        ws.cell(r, 3, item_original[:80]).border = thin_border
+        cell_qtd = ws.cell(r, 4, quantidade)
+        cell_qtd.number_format = qty_fmt
+        cell_qtd.border = thin_border
+        ws.cell(r, 5, unidade).border = thin_border
+
+        if auto is not None and auto < len(opcoes):
+            escolha = opcoes[auto]
+            preco = float(escolha.get("preco_unitario", 0))
+            total = quantidade * preco
+            desc = escolha.get("descricao", "").split("| Descrição: ")[-1][:120]
+
+            ws.cell(r, 6, escolha.get("codigo", "")).border = thin_border
+            ws.cell(r, 7, desc).border = thin_border
+
+            ws.cell(r, 8, fmt_moeda(preco)).border = thin_border
+            ws.cell(r, 8).alignment = Alignment(horizontal="right")
+            ws.cell(r, 9, fmt_moeda(total)).border = thin_border
+            ws.cell(r, 9).alignment = Alignment(horizontal="right")
+
+            ws.cell(r, 10, "OK").font = Font(color="27AE60", bold=True)
+            ws.cell(r, 10).border = thin_border
+            ws.cell(r, 10).alignment = Alignment(horizontal="center")
+        else:
+            ws.merge_cells(start_row=r, start_column=6, end_row=r, end_column=7)
+            ws.cell(r, 6, "---").border = thin_border
+            ws.cell(r, 7).border = thin_border
+            ws.cell(r, 8, "---").border = thin_border
+            ws.cell(r, 9, "---").border = thin_border
+            ws.cell(r, 10, "SEM MATCH").font = Font(color="C0392B", bold=True)
+            ws.cell(r, 10).border = thin_border
+            ws.cell(r, 10).alignment = Alignment(horizontal="center")
+        r += 1
+
+    # ── Itens sem matching ─────────────────────────────────────────────
+    sem_match = [s for s in sugestoes if s.get("selecao_automatica") is None]
+    if sem_match:
+        r += 1
+        ws.cell(r, 1, "ITENS SEM MATCHING SINAPI").font = Font(bold=True, size=11, color="C0392B")
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=5)
+        r += 1
+
+        for h in headers[:5]:
+            cell = ws.cell(r, headers.index(h) + 1, h)
+            cell.font = Font(bold=True, color="C0392B")
+            cell.fill = sem_match_fill
+            cell.border = thin_border
+        r += 1
+
+        for s in sem_match:
+            ws.cell(r, 1, s.get("id_cad", "")).border = thin_border
+            ws.cell(r, 2, s.get("tipo", "")).border = thin_border
+            ws.cell(r, 3, s.get("item_original", "")[:80]).border = thin_border
+            cell_q = ws.cell(r, 4, float(s.get("quantidade", 0)))
+            cell_q.number_format = qty_fmt
+            cell_q.border = thin_border
+            ws.cell(r, 5, s.get("unidade", "un")).border = thin_border
+            r += 1
+
+    # ── Rodapé ─────────────────────────────────────────────────────────
+    r += 1
+    ws.cell(r, 1, f"Total itens orçados: {resumo.get('total_itens', 0)}  |  "
+                  f"Subtotal: {fmt_moeda(subtotal)}  |  "
+                  f"BDI: {taxa_bdi:.1f}%  |  "
+                  f"Total: {fmt_moeda(total_geral)}  |  "
+                  f"Itens sem matching: {resumo.get('total_sem_itens', 0)}").font = Font(italic=True, size=9)
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=10)
+    r += 1
+    ws.cell(r, 1, "Documento gerado automaticamente | Fonte: SINAPI Referência | Matching: Keyword + LLM").font = Font(italic=True, size=9, color="7F8C8D")
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=10)
+
+    # ── Larguras das colunas ───────────────────────────────────────────
+    col_widths = {
+        1: 14,   # ITEM
+        2: 14,   # TIPO
+        3: 45,   # DESCRIÇÃO
+        4: 8,    # QTD
+        5: 6,    # UN
+        6: 16,   # COD SINAPI
+        7: 55,   # DESCRIÇÃO SINAPI
+        8: 18,   # PREÇO UNIT. (R$ 1.234,56)
+        9: 18,   # TOTAL
+        10: 12,  # STATUS
+    }
+    for col, width in col_widths.items():
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+    # ── Freeze pane ────────────────────────────────────────────────────
+    ws.freeze_panes = "A8"
+
+    wb.save(output_path)
     return output_path
 
 

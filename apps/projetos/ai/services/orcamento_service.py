@@ -39,13 +39,10 @@ def buscar_itens_para_selecao(
     confianca_llm = "baixa"
     resultado_llm = None
     if usar_llm:
-        try:
-            resultado = match_com_llm(descricao_cad)
-            resultado_llm = resultado
-            cod_escolhido = resultado.get("codigo_escolhido")
-            confianca_llm = resultado.get("confianca", "baixa")
-        except Exception:
-            pass
+        resultado = match_com_llm(descricao_cad)
+        resultado_llm = resultado
+        cod_escolhido = resultado.get("codigo_escolhido")
+        confianca_llm = resultado.get("confianca", "baixa")
 
     # 1. Verificar se LLM retornou estimativa CUB
     is_estimativa = (

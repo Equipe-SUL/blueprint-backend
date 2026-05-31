@@ -301,7 +301,6 @@ class ServirMemorialPDFView(APIView):
         projeto = get_object_or_404(Projeto, id=projeto_id)
         memorial = get_object_or_404(Memorial, id=memorial_id, projeto=projeto)
 
-        # Reconstruir o caminho do PDF (mesmo padrão do node_storage_export)
         nome_obra = projeto.nome_obra.replace(" ", "_").lower()
         pdf_filename = f"memorial_descritivo_{memorial.id}_{nome_obra}.pdf"
         pdf_path = os.path.join(settings.MEDIA_ROOT, "memoriais", "descritivo", pdf_filename)
@@ -309,6 +308,132 @@ class ServirMemorialPDFView(APIView):
         if not os.path.isfile(pdf_path):
             return Response(
                 {"erro": f"PDF não encontrado: {pdf_filename}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from django.http import FileResponse
+
+        response = FileResponse(
+            open(pdf_path, "rb"),
+            content_type="application/pdf",
+        )
+        response["Content-Disposition"] = f'inline; filename="{pdf_filename}"'
+        return response
+
+
+class GerarOrcamentoView(APIView):
+    """
+    Gera o orçamento SINAPI a partir de um arquivo DXF já upado
+    e retorna o CSV como download.
+
+    POST /api/projetos/<projeto_id>/gerar-orcamento/<arquivo_id>/
+    """
+
+    def post(self, request, projeto_id, arquivo_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        arquivo = get_object_or_404(ArquivoUpload, id=arquivo_id, projeto=projeto)
+
+        if not arquivo.caminho_arquivo:
+            return Response(
+                {"erro": "Arquivo não possui caminho físico registrado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not arquivo.nome_original.lower().endswith(".dxf"):
+            return Response(
+                {"erro": "Formato não suportado. Apenas arquivos .DXF podem ser processados."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        caminho_fisico = os.path.join(settings.MEDIA_ROOT, arquivo.caminho_arquivo)
+        if not os.path.isfile(caminho_fisico):
+            return Response(
+                {"erro": f"Arquivo físico não encontrado em: {caminho_fisico}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        metadados = {
+            "nome": projeto.nome_obra,
+            "localizacao": f"{projeto.cidade_obra}, {projeto.estado_obra}",
+            "descricao": projeto.desc_obra,
+        }
+
+        taxa_bdi = float(request.data.get("taxa_bdi", projeto.taxa_bdi or 25.0))
+
+        try:
+            from apps.projetos.ai.services.orcamento_full_service import processar_orcamento
+
+            resultado = processar_orcamento(
+                caminho_dxf=caminho_fisico,
+                projeto_id=projeto_id,
+                metadados_obra=metadados,
+                taxa_bdi=taxa_bdi,
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {
+                    "sucesso": False,
+                    "erro": f"Exceção ao gerar orçamento: {str(e)}",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if not resultado.get("sucesso"):
+            arquivo.status_processamento = ArquivoUpload.Status.ERRO
+            arquivo.save()
+            return Response(
+                {
+                    "sucesso": False,
+                    "erro": resultado.get("erro", "Erro desconhecido ao gerar orçamento."),
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        memorial_id = resultado.get("memorial_db_id")
+        if memorial_id:
+            Memorial.objects.filter(id=memorial_id).update(arquivo=arquivo)
+
+        arquivo.status_processamento = ArquivoUpload.Status.PROCESSADO
+        arquivo.save()
+
+        xlsx_path = resultado.get("csv_path")
+        xlsx_filename = resultado.get("csv_filename", f"orcamento_{projeto.nome_obra}.xlsx")
+
+        from django.http import FileResponse
+
+        if not xlsx_path or not os.path.isfile(xlsx_path):
+            return Response(
+                {"sucesso": False, "erro": "Arquivo gerado não encontrado no servidor."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        response = FileResponse(
+            open(xlsx_path, "rb"),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{xlsx_filename}"'
+        return response
+
+
+class ServirOrcamentoPDFView(APIView):
+    """
+    GET /api/projetos/<projeto_id>/orcamento/<memorial_id>/pdf/
+    Retorna o arquivo PDF do orçamento para visualização no frontend.
+    """
+
+    def get(self, request, projeto_id, memorial_id):
+        projeto = get_object_or_404(Projeto, id=projeto_id)
+        memorial = get_object_or_404(Memorial, id=memorial_id, projeto=projeto)
+
+        nome_obra = projeto.nome_obra.replace(" ", "_").lower()
+        pdf_filename = f"orcamento_{memorial.id}_{nome_obra}.pdf"
+        pdf_path = os.path.join(settings.MEDIA_ROOT, "memoriais", "orcamento", pdf_filename)
+
+        if not os.path.isfile(pdf_path):
+            return Response(
+                {"erro": f"PDF do orçamento não encontrado: {pdf_filename}"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
