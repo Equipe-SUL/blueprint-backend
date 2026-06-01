@@ -1,123 +1,136 @@
-# Blueprint Backend — Módulo de IA
+# Blueprint AI — Módulo de Processamento Inteligente
 
-Pipeline inteligente para extração de dados DXF e geração de orçamentos SINAPI, orquestrado via **LangGraph**.
+Pipeline de extração, análise e orçamentação de projetos de construção civil a partir de plantas DXF.
 
 ## Arquitetura
 
 ```
-DXF → Extração DETERMINÍSTICA (ezdxf, sem IA) → Dados brutos
-    → Pipeline LangGraph (IA para CLASSIFICAR e LIMPAR) → Dados limpos
-    → RAG SINAPI → Orçamento Final
+DXF Upload
+    │
+    ▼
+┌─────────────────────┐
+│    CAD Engine       │  (cad/)
+│  parse → heal →     │
+│  polygonize →       │
+│  classify → metrics │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│   dxf_core.py       │  (extracaocalculo/)
+│  Extração           │
+│  determinística     │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│    adapter.py       │  (services/)
+│  CAD → Orçamento    │
+│  format conversion  │
+└──────┬──────┬───────┘
+       │      │
+       ▼      ▼
+┌──────────┐ ┌──────────────────┐
+│ Memorial │ │    Orçamento     │
+│Descritivo│ │     SINAPI       │
+│(grafo_   │ │                  │
+│novo/)    │ │ sinapi_matcher   │
+│          │ │  (keyword + LLM) │
+│ pdf_     │ │                  │
+│ generator│ │ orcamento_full_  │
+│          │ │ service.py       │
+│ descriti │ │ export_orcamento │
+│ vo_      │ │  (.xlsx)         │
+│ service  │ │                  │
+└──────────┘ └──────────────────┘
 ```
 
-### Princípio Fundamental
-
-**A IA NÃO extrai geometria do DXF** — isso é trabalho determinístico do `ezdxf`.
-
-A IA é usada para:
-1. **Classificar** layers ambíguas (layer "0", nomes não-padrão)
-2. **Filtrar** ruído (anotações, cotas, hachuras)
-3. **Validar** coerência (um "pilar" com 500m² provavelmente é laje)
-4. **Buscar** correspondências SINAPI via RAG
-
-## Estrutura de Pastas
+## Estrutura de Diretórios
 
 ```
-apps/projetos/ai/
-├── config.py                    # Config centralizada (.env, LangSmith)
-├── client.py                    # Cliente LLM (ChatOllama com cache)
-├── prompts.py                   # Templates de prompts
+ai/
+├── cad/                    # CAD Engine geométrico
+│   ├── dxf_parser.py       # Parse de entidades DXF (linhas, arcos, blocos, textos)
+│   ├── curve_resolution.py # Aplainamento de curvas em segmentos de reta
+│   ├── healer.py           # Snap de vértices, merge de segmentos colineares
+│   ├── polygonizer.py      # Grafo de adjacência → detecção de ciclos → polígonos
+│   ├── validation.py       # Validação e reparo de anéis (winding, self-intersection)
+│   ├── classifier.py       # Associação TXT_AMBIENTE → polígonos de cômodos
+│   ├── text_rooms.py       # Fallback de detecção de cômodos por pares de texto
+│   ├── metrics.py          # Cálculo de área, perímetro, matriz de adjacência
+│   ├── topology.py         # Grafo topológico (NetworkX)
+│   ├── structural_analysis.py # Análise de elementos estruturais
+│   ├── ir.py               # Representação Intermediária (GeometryIR)
+│   ├── geojson.py          # Geração de GeoJSON
+│   └── engine.py           # Orquestrador principal
 │
-├── extraction/                  # Extração determinística (sem IA)
-│   ├── __init__.py
-│   ├── dxf_reader.py           # Leitura ezdxf com filtros inteligentes
-│   ├── geometry.py             # Cálculos geométricos (Shoelace, perímetro)
-│   ├── filters.py              # Regras de filtragem (tipo + layer)
-│   └── geojson_builder.py      # Monta GeoJSON limpo
+├── extracaocalculo/        # Extração determinística + exportação
+│   ├── dxf_core.py         # Extração central com mapeamento estático de layers
+│   └── dxf_exportadores.py # Exportação MemorialCalculo para JSON/CSV/PDF
 │
-├── classification/              # Classificação inteligente
-│   ├── __init__.py
-│   ├── layer_classifier.py     # 2 estágios: regras → LLM
-│   └── taxonomy.py             # Taxonomia de elementos + mapeamento SINAPI
+├── grafo_novo/             # LangGraph pipeline (Memorial Descritivo)
+│   ├── state_descritivo.py      # DescritivoState TypedDict
+│   ├── nodes_descritivo.py      # 4 nós do grafo
+│   ├── edges_descritivo.py      # Arestas condicionais
+│   └── builder_descritivo.py    # Compilação do StateGraph
 │
-├── graph/                       # Orquestração LangGraph
-│   ├── __init__.py
-│   ├── state.py                # BlueprintState (TypedDict)
-│   ├── nodes.py                # 8 nós com @traceable (LangSmith)
-│   ├── edges.py                # Roteamento condicional
-│   └── builder.py              # Monta grafo com MemorySaver (HITL)
+├── services/               # Camada de serviço da aplicação
+│   ├── adapter.py               # Converte saída da extração para formato de orçamento
+│   ├── descritivo_service.py    # Orquestrador: view → LangGraph (memorial)
+│   ├── orcamento_service.py     # Matching SINAPI (keyword + LLM) + cálculo
+│   ├── orcamento_full_service.py# Pipeline completo: DXF → CAD → adapter → SINAPI → XLSX
+│   ├── export_orcamento.py      # Exportação .xlsx com openpyxl
+│   └── pdf_generator.py         # Geração de PDF do memorial (reportlab)
 │
-├── rag/                         # Retrieval-Augmented Generation
-│   ├── documents.py            # Documentos SINAPI → Document objects
-│   ├── embeddings.py           # Fábrica de embeddings
-│   ├── vectorstore.py          # ChromaDB (persistência, busca)
-│   └── retriever.py            # Interface de recuperação
+├── rag/                    # Retrieval-Augmented Generation (ChromaDB)
+│   ├── embeddings.py            # HuggingFace Embeddings (multilingual MiniLM)
+│   ├── vectorstore.py           # Cliente Chroma para coleções SINAPI/NBRs
+│   ├── ingest_referencia.py     # Ingestão da planilha SINAPI Referência
+│   └── ingest_nbrs.py           # Ingestão de PDFs de normas técnicas
 │
-└── services/                    # Camada de aplicação
-    ├── pipeline_service.py     # Interface pública (invoke + retomar HITL)
-    └── orcamento_service.py    # RAG + cálculo de orçamento final
+├── sinapi_matcher.py       # Filtro keyword + matching LLM contra tabela SINAPI
+├── prompts_descritivo.py   # Prompts do sistema para o LLM auditor
+├── nbrs.py                 # Integração RAG de NBRs nos prompts
+├── client.py               # Cliente ChatOllama (singleton cacheado)
+└── config.py               # Configuração centralizada
 ```
 
-## Fluxo do Grafo LangGraph
+## Pipeline de Orçamento SINAPI
 
-```mermaid
-graph TD
-    START["📄 Upload DXF"] --> EXTRACT["🔧 Nó 1: Extração<br/>(determinístico, ezdxf)"]
-    EXTRACT --> CLASSIFY["🤖 Nó 2: Classificação<br/>(regras + LLM)"]
-    CLASSIFY --> FILTER["🧹 Nó 3: Filtragem<br/>(remove ruído)"]
-    FILTER --> VALIDATE["✅ Nó 4: Validação<br/>(verifica coerência)"]
-    VALIDATE --> DECIDE{Dados OK?}
-    DECIDE -->|Sim| CALCULATE["📐 Nó 5: Cálculo<br/>(área, perímetro)"]
-    DECIDE -->|Crítico| HUMAN["👤 interrupt()<br/>(Human-in-the-loop)"]
-    HUMAN -->|Continuar| CALCULATE
-    HUMAN -->|Cancelar| FIM_CANCEL["❌ END"]
-    CALCULATE --> ADAPT["🔄 Nó 6: Adaptação<br/>(formata para RAG)"]
-    ADAPT --> RAG["🔍 Nó 7: RAG SINAPI<br/>(busca correspondências)"]
-    RAG --> BUDGET["💰 Nó 8: Orçamento<br/>(quantidade × preço + BDI)"]
-    BUDGET --> FIN["📋 Memorial Final"]
-```
+O fluxo completo (`orcamento_full_service.py`):
 
-## Features
+1. **CAD Engine** — Processa o DXF (parse, heal, polygonize, classify, metrics)
+2. **dxf_core** — Extração determinística de quantitativos
+3. **adapter** — Converte dados extraídos para formato padronizado de orçamento
+4. **Análise estrutural** — Identifica elementos estruturais (vigas, pilares, lajes)
+5. **Matching SINAPI** — `sinapi_matcher.py`: primeiro filtro por keyword, depois LLM para escolha exata
+6. **Cálculo final** — Preço total = quantidade × preço SINAPI
+7. **Persistência** — Cria `ItemProjeto` no banco (apenas itens com matching SINAPI)
+8. **Exportação** — Gera `.xlsx` via `export_orcamento.py`
 
-### 🔧 Extração Determinística
-- Filtragem por **tipo de entidade** (ignora DIMENSION, HATCH, TEXT, etc.)
-- Filtragem por **layer** (ignora COTAS, CARIMBO, TEXTOS, etc.)
-- Suporte a LWPOLYLINE, POLYLINE, LINE, ARC, CIRCLE, SPLINE, ELLIPSE
+> **Importante:** O matching SINAPI **obriga** uso de LLM. Não há fallback silencioso para apenas keyword.
 
-### 🤖 Classificação Inteligente
-- **Estágio 1**: Regras determinísticas com 50+ mapeamentos de layers
-- **Estágio 2**: LLM (Ollama) para layers que as regras não classificam
-- Taxonomia: pilar, viga, laje, estaca, fundação, parede, tubulação, elétrica, anotação
+## Configuração
 
-### 👤 Human-in-the-Loop
-- Usa `interrupt()` nativo do LangGraph para pausar em alertas críticos
-- Pipeline retomável via endpoint `POST /api/projetos/<id>/retomar/`
-- Checkpointer `MemorySaver` mantém estado entre pausas
+Todas as variáveis de ambiente relevantes:
 
-### 📊 Observabilidade (LangSmith)
-- Todos os 8 nós decorados com `@traceable`
-- Tracing automático via `LANGSMITH_TRACING=true` no `.env`
-- Cada nó aparece como um "run" no dashboard LangSmith
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | URL do servidor Ollama |
+| `OLLAMA_CHAT_MODEL` | `gemma4:31b-cloud` | Modelo para matching SINAPI |
+| `OLLAMA_VL_MODEL` | `gemma4:31b-cloud` | Modelo para análise de imagem (se aplicável) |
+| `OLLAMA_TEMPERATURE` | `0.1` | Temperatura do LLM |
+| `LANGSMITH_TRACING` | `false` | Habilitar tracing LangSmith |
 
-### 💰 RAG SINAPI
-- Busca semântica via ChromaDB + sentence-transformers
-- Mapeamento automático categoria → descrição SINAPI
-- Cálculo de orçamento com BDI configurável por projeto
+## Management Commands
 
-## Endpoints API
+```bash
+# Ingerir dados SINAPI Referência no ChromaDB
+python manage.py ingerir_referencia_sinapi --limpar
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| POST | `/api/projetos/<id>/upload/` | Upload DXF → pipeline completo |
-| POST | `/api/projetos/<id>/retomar/` | Retoma pipeline pausado (HITL) |
-| GET | `/api/projetos/<id>/itens/` | Lista itens do projeto |
+# Ingerir composições SINAPI (mão de obra)
+python manage.py ingerir_sinapi
 
-### Exemplo: Retomar pipeline
-
-```json
-POST /api/projetos/1/retomar/
-{
-    "thread_id": "abc123-...",
-    "decisao": "continuar"
-}
+# Ingerir PDFs de normas técnicas (NBRs)
+python manage.py ingerir_nbrs
 ```

@@ -83,6 +83,33 @@ python manage.py runserver
 
 Servidor disponivel em: `http://127.0.0.1:8000/`
 
+## 6) Ingerir dados SINAPI (ChromaDB)
+
+O pipeline de orçamento depende de uma base vetorial ChromaDB com os dados SINAPI.
+Execute os comandos abaixo na ordem:
+
+```bash
+# Ingerir planilha de referência SINAPI (~4.820 itens)
+python manage.py ingerir_referencia_sinapi --limpar
+
+# Ingerir composições de mão de obra
+python manage.py ingerir_sinapi
+```
+
+> O ChromaDB é armazenado localmente em `chroma_db/` (~76 MB) e está no `.gitignore` — cada desenvolvedor precisa rodar a ingestão ao clonar o projeto.
+
+### NBRs (normas técnicas — opcional)
+
+Caso queira enriquecer o memorial descritivo com normas técnicas:
+
+1. Crie a pasta `nbrs/` na raiz do backend
+2. Coloque os PDFs das NBRs desejadas
+3. Execute:
+
+```bash
+python manage.py ingerir_nbrs
+```
+
 ## Comandos uteis
 
 Criar superusuario:
